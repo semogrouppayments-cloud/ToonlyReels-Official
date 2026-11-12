@@ -1,171 +1,71 @@
-import { useState, useEffect } from "react";
-import { Download, Share, MoreVertical, Plus, ArrowRight, CheckCircle2, Smartphone, Monitor } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, Download, Monitor, Share, Smartphone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-interface BeforeInstallPromptEvent extends Event {
+interface InstallPrompt extends Event {
   prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
-
 const Install = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-
+  const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
+  const [installed, setInstalled] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [message, setMessage] = useState('');
+  const native = Capacitor.isNativePlatform();
   useEffect(() => {
-    const ua = navigator.userAgent;
-    setIsIOS(/iPad|iPhone|iPod/.test(ua));
-    setIsAndroid(/Android/.test(ua));
-    setIsStandalone(
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true
-    );
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    setInstalled(window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true);
+    setIos(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    const onPrompt = (event: Event) => { event.preventDefault(); setPrompt(event as InstallPrompt); };
+    const onInstalled = () => { setInstalled(true); setPrompt(null); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
     };
-
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => setIsInstalled(true));
-
-    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setIsInstalled(true);
-    setDeferredPrompt(null);
+  const install = async () => {
+    if (!prompt) return;
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      setMessage(choice.outcome === 'accepted' ? 'Installation requested. Follow your browser’s instructions.' : 'You can install later from your browser menu.');
+    } catch { setMessage('Use your browser menu to install the app.'); }
+    setPrompt(null);
   };
-
-  if (isStandalone || isInstalled) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
-        <CheckCircle2 className="mb-4 h-16 w-16 text-green-500" />
-        <h1 className="mb-2 text-2xl font-bold text-foreground">Already Installed!</h1>
-        <p className="mb-6 text-muted-foreground">ToonlyReels is installed on your device. Enjoy!</p>
-        <Button onClick={() => window.location.href = "/feed"} className="gap-2">
-          Open App <ArrowRight className="h-4 w-4" />
+  return <main className="min-h-screen bg-background px-5 py-10 text-foreground">
+    <div className="mx-auto max-w-lg space-y-6">
+      <header className="text-center space-y-3">
+        <img src="/pwa-icon-192.png" width="80" height="80" alt="ToonlyReels" className="mx-auto rounded-2xl shadow-lg" />
+        <h1 className="text-3xl font-bold">Get ToonlyReels</h1>
+        <p className="text-muted-foreground">Use the web app or download the Android app.</p>
+      </header>
+      <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><Smartphone className="h-5 w-5" /> Install the web app</h2>
+        {native ? <p className="text-sm text-muted-foreground">You’re already using the Android app.</p> : installed ?
+          <p className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-5 w-5 text-green-600" /> You’re using the installed web app.</p> :
+          prompt ? <Button onClick={install} size="lg" className="w-full gap-2"><Download className="h-5 w-5" /> Install PWA</Button> :
+          ios ? <p className="text-sm text-muted-foreground">In Safari, tap <Share className="inline h-4 w-4" /> <strong>Share</strong>, choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</p> :
+          <p className="text-sm text-muted-foreground">In Chrome or Edge, open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home Screen</strong>. On a computer, use the install icon in the address bar.</p>}
+        {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
+        <p className="text-xs text-muted-foreground">The app shell can load offline after installation. Sign-in and videos need an internet connection.</p>
+      </section>
+      {!native && <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Android APK</h2>
+        <p className="text-sm text-muted-foreground">Version 0.1.6 · Android 7 or newer</p>
+        <Button asChild size="lg" className="w-full gap-2">
+          <a href="/downloads/ToonlyReels-0.1.6-signed.apk" download="ToonlyReels-0.1.6-signed.apk"><Download className="h-5 w-5" /> Download Android APK</a>
         </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-screen flex-col items-center bg-background px-6 py-12">
-      {/* Header */}
-      <div className="mb-8 flex flex-col items-center text-center">
-        <img
-          src="https://storage.googleapis.com/gpt-engineer-file-uploads/YhjAWGaWarSE2KQXMcw8kze1WNk2/uploads/1770415691079-ToonlyReels_Logo_copy.png"
-          alt="ToonlyReels"
-          className="mb-4 h-20 w-20 rounded-2xl shadow-lg"
-        />
-        <h1 className="text-3xl font-bold text-foreground">Get ToonlyReels</h1>
-        <p className="mt-2 max-w-sm text-muted-foreground">
-          Install ToonlyReels on your phone for the best experience — fast, fun, and works offline!
-        </p>
-      </div>
-
-      {/* Install Button (Chrome/Edge/Samsung) */}
-      {deferredPrompt && (
-        <Button
-          onClick={handleInstall}
-          size="lg"
-          className="mb-8 gap-3 rounded-full bg-[#FF6B6B] px-8 py-6 text-lg font-semibold text-white shadow-xl hover:bg-[#FF5252]"
-        >
-          <Download className="h-6 w-6" />
-          Install App
-        </Button>
-      )}
-
-      {/* iOS Instructions */}
-      {isIOS && !deferredPrompt && (
-        <div className="mb-8 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground flex items-center gap-2">
-            <Smartphone className="h-5 w-5" /> Install on iPhone / iPad
-          </h2>
-          <ol className="space-y-4 text-sm text-muted-foreground">
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-              <span>Tap the <Share className="inline h-4 w-4 text-primary" /> <strong>Share</strong> button at the bottom of Safari</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
-              <span>Scroll down and tap <Plus className="inline h-4 w-4 text-primary" /> <strong>"Add to Home Screen"</strong></span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
-              <span>Tap <strong>"Add"</strong> in the top right — done!</span>
-            </li>
-          </ol>
-        </div>
-      )}
-
-      {/* Android Instructions (fallback if no prompt) */}
-      {isAndroid && !deferredPrompt && (
-        <div className="mb-8 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground flex items-center gap-2">
-            <Smartphone className="h-5 w-5" /> Install on Android
-          </h2>
-          <ol className="space-y-4 text-sm text-muted-foreground">
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-              <span>Tap the <MoreVertical className="inline h-4 w-4 text-primary" /> <strong>menu</strong> (3 dots) in Chrome</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
-              <span>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong></span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
-              <span>Tap <strong>"Install"</strong> — the app will appear on your home screen!</span>
-            </li>
-          </ol>
-        </div>
-      )}
-
-      {/* Desktop fallback */}
-      {!isIOS && !isAndroid && !deferredPrompt && (
-        <div className="mb-8 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground flex items-center gap-2">
-            <Monitor className="h-5 w-5" /> Install on Desktop
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Look for the <Download className="inline h-4 w-4 text-primary" /> install icon in your browser's address bar, or open this page on your phone to install the mobile app.
-          </p>
-        </div>
-      )}
-
-      {/* Features */}
-      <div className="w-full max-w-sm space-y-3">
-        <h3 className="text-center text-sm font-medium text-muted-foreground uppercase tracking-wider">Why install?</h3>
-        {[
-          { icon: "⚡", text: "Loads instantly — no browser delays" },
-          { icon: "📱", text: "Full-screen experience like a real app" },
-          { icon: "🔔", text: "Get notified about new cartoons" },
-          { icon: "📶", text: "Works even with a slow connection" },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3">
-            <span className="text-xl">{item.icon}</span>
-            <span className="text-sm text-foreground">{item.text}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Continue to app */}
-      <Button
-        variant="ghost"
-        className="mt-8 text-muted-foreground"
-        onClick={() => window.location.href = "/feed"}
-      >
-        Continue in browser <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
+        <p className="text-xs text-muted-foreground">Signed Android release build. Android may ask you to allow installation from your browser. APK files install on Android devices.</p>
+        <p className="text-xs text-muted-foreground">Updating an older development installation? <a className="text-primary underline" href="/downloads/ToonlyReels-0.1.6-debug.apk" download>Download the development update APK</a> to keep its existing signing certificate.</p>
+        <a href="/downloads/release.json" className="text-xs text-primary underline">Version and SHA-256 checksum</a>
+      </section>}
+      <Button asChild variant="outline" className="w-full gap-2"><Link to="/"><Monitor className="h-4 w-4" /> Open ToonlyReels <ArrowRight className="h-4 w-4" /></Link></Button>
+      <nav className="flex justify-center gap-5 text-xs text-muted-foreground"><Link to="/privacy-policy" className="underline">Privacy</Link><Link to="/terms-of-service" className="underline">Terms</Link></nav>
     </div>
-  );
+  </main>;
 };
-
 export default Install;

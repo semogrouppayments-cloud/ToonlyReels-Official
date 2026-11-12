@@ -8,8 +8,8 @@ export interface GeneratedToonVariant {
 }
 
 const MIME_CANDIDATES = [
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
+  'video/webm;codecs=vp9,opus',
+  'video/webm;codecs=vp8,opus',
   'video/webm',
 ];
 
@@ -78,9 +78,15 @@ const renderVariant = async (
   }
 
   video.src = sourceUrl;
-  video.muted = true;
+  // Route decoded audio into the recording, not the speakers.
+  video.muted = false;
   video.playsInline = true;
   video.preload = 'metadata';
+
+  let audioContext: AudioContext | null = null;
+  let stream: MediaStream | null = null;
+  let recorder: MediaRecorder | null = null;
+  let frameId = 0;
 
   try {
     await waitForEvent(video, 'loadedmetadata');
@@ -94,8 +100,19 @@ const renderVariant = async (
     canvas.width = width;
     canvas.height = height;
 
-    const stream = canvas.captureStream(24);
-    const recorder = new MediaRecorder(stream, {
+    stream = canvas.captureStream(24);
+    // Canvas capture is video-only. Preserve the source audio through Web Audio.
+    // If this browser cannot record audio, retain the original rather than publish a silent rendition.
+    if (!window.AudioContext) return null;
+    audioContext = new AudioContext();
+    const audioSource = audioContext.createMediaElementSource(video);
+    const audioDestination = audioContext.createMediaStreamDestination();
+    audioSource.connect(audioDestination);
+    const audioTrack = audioDestination.stream.getAudioTracks()[0];
+    if (!audioTrack) return null;
+    stream.addTrack(audioTrack);
+    await audioContext.resume();
+    recorder = new MediaRecorder(stream, {
       mimeType,
       videoBitsPerSecond: bitrate,
     });
@@ -106,14 +123,14 @@ const renderVariant = async (
     };
 
     const stopped = new Promise<void>((resolve, reject) => {
-      recorder.onstop = () => resolve();
-      recorder.onerror = () => reject(new Error('Variant recorder failed'));
+      recorder!.onstop = () => resolve();
+      recorder!.onerror = () => reject(new Error('Variant recorder failed'));
     });
 
     const draw = () => {
       if (video.paused || video.ended) return;
       context.drawImage(video, 0, 0, width, height);
-      window.requestAnimationFrame(draw);
+      frameId = window.requestAnimationFrame(draw);
     };
 
     video.currentTime = 0;
@@ -142,6 +159,10 @@ const renderVariant = async (
       mimeType: blob.type || 'video/webm',
     };
   } finally {
+    window.cancelAnimationFrame(frameId);
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    stream?.getTracks().forEach(track => track.stop());
+    if (audioContext && audioContext.state !== 'closed') await audioContext.close();
     video.pause();
     video.removeAttribute('src');
     video.load();

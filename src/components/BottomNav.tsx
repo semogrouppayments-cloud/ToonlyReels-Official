@@ -1,4 +1,5 @@
-import { Film, Search, Upload, Bell, User } from 'lucide-react';
+import BrandNotificationIcon from '@/components/BrandNotificationIcon';
+import { Film, Search, Upload, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,7 +104,7 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-4 left-4 right-4 bg-card/95 backdrop-blur-lg border-2 border-border rounded-3xl shadow-2xl z-50 max-w-lg mx-auto">
+    <nav style={{ bottom: "calc(1rem + var(--safe-bottom))" }} className="fixed bottom-4 left-4 right-4 bg-card/95 backdrop-blur-lg border-2 border-border rounded-3xl shadow-2xl z-50 max-w-lg mx-auto">
       <div className="flex items-center justify-around h-16 px-2 relative">
         <button
           onClick={() => navigate('/feed')}
@@ -147,7 +148,7 @@ const BottomNav = () => {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Bell className="h-5 w-5" />
+          <BrandNotificationIcon className="h-5 w-5" />
           <span className="text-[10px] font-semibold">Alerts</span>
         </button>
 

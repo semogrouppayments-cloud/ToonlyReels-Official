@@ -16,7 +16,6 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useAppRating } from '@/hooks/useAppRating';
 import { useChangelog } from '@/hooks/useChangelog';
 import { useScreenTime } from '@/hooks/useScreenTime';
-import { chooseToonPreloadSource } from '@/lib/toonPlayback';
 
 interface SubtitleSegment {
   id: number;
@@ -43,16 +42,6 @@ interface Video {
   };
 }
 
-// Fisher-Yates shuffle algorithm
-const shuffleArray = <T,>(array: T[]): T[] => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
-
 const PAGE_SIZE = 10;
 
 const Feed = () => {
@@ -64,7 +53,6 @@ const Feed = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
   const [isPremium, setIsPremium] = useState(false);
-  const [isCreative, setIsCreative] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
@@ -77,15 +65,13 @@ const Feed = () => {
   const isLoadingMoreRef = useRef(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
-  const [followingIds, setFollowingIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
   const isPulling = useRef(false);
   const isSwipingVertically = useRef(false);
-  const preloadedVideosRef = useRef<Set<string>>(new Set());
+  const [warmAfterId, setWarmAfterId] = useState<string | null>(null);
   const videosRef = useRef<Video[]>([]);
 
   // Screen time tracking
@@ -109,34 +95,12 @@ const Feed = () => {
     
     setCurrentUserId(session.user.id);
     
-    // Check if user is creative
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id);
-    setIsCreative(roles?.some(r => r.role === 'creative') || false);
-    
-    // Fetch user profile, blocked users, and following in parallel
-    fetchUserProfile(session.user.id);
-    const [blockedIds, followIds] = await Promise.all([
-      fetchBlockedUsers(session.user.id),
-      fetchFollowingUsers(session.user.id)
-    ]);
-    
-    // Fetch first page of videos
-    await fetchVideos(0, true, blockedIds, 'forYou', followIds);
+    // All account types use the same feed; account decoration does not block it.
+    // Video RLS also enforces blocked creators while the local block list loads.
+    void fetchUserProfile(session.user.id);
+    void fetchBlockedUsers(session.user.id);
+    await fetchVideos(0, true, []);
     setIsLoading(false);
-  };
-
-  const fetchFollowingUsers = async (userId: string): Promise<string[]> => {
-    const { data: follows } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', userId);
-    
-    const ids = follows?.map(f => f.following_id) || [];
-    setFollowingIds(ids);
-    return ids;
   };
 
   const fetchBlockedUsers = async (userId: string): Promise<string[]> => {
@@ -153,17 +117,13 @@ const Feed = () => {
   const fetchVideos = async (
     pageNum: number, 
     reset: boolean = false, 
-    blockedIds?: string[],
-    tab?: 'forYou' | 'following',
-    followIds?: string[]
+    blockedIds?: string[]
   ) => {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     
     // Use provided values or fall back to state
     const idsToFilter = blockedIds || blockedUserIds;
-    const currentTab = tab || activeTab;
-    const currentFollowIds = followIds || followingIds;
     
     let query = supabase
       .from('videos')
@@ -172,25 +132,14 @@ const Feed = () => {
         subtitles,
         profiles(username, avatar_url, is_verified)
       `)
+      .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, to);
     
     // Filter out videos from blocked users
     if (idsToFilter.length > 0) {
       query = query.not('creator_id', 'in', `(${idsToFilter.join(',')})`);
-    }
-    
-    // Filter to only following creators for "Following" tab
-    if (currentTab === 'following' && currentFollowIds.length > 0) {
-      query = query.in('creator_id', currentFollowIds);
-    } else if (currentTab === 'following' && currentFollowIds.length === 0) {
-      // No following, return empty
-      if (reset) {
-        setVideos([]);
-        setPage(0);
-        setHasMore(false);
-      }
-      return;
     }
     
     const { data, error } = await query;
@@ -200,28 +149,41 @@ const Feed = () => {
       return;
     }
 
+    // A push can target an older approved reel outside the first page. RLS still
+    // enforces visibility and blocks; normal app startup makes no extra request.
+    const target = new URLSearchParams(window.location.search).get('video');
+    let rows = data || [];
+    if (reset && target && /^[0-9a-f-]{36}$/i.test(target) && !rows.some(row => row.id === target)) {
+      const { data: requested } = await supabase.from('videos').select('*, subtitles, profiles(username, avatar_url, is_verified)')
+        .eq('id', target).eq('moderation_status', 'approved').maybeSingle();
+      if (requested) rows = [requested, ...rows];
+    } else if (reset && target) {
+      rows = [...rows.filter(row => row.id === target), ...rows.filter(row => row.id !== target)];
+    }
+
     // Transform data to ensure subtitles are properly typed
-    const transformedVideos: Video[] = (data || []).map(video => ({
+    const transformedVideos: Video[] = rows.map(video => ({
       ...video,
       subtitles: video.subtitles as unknown as SubtitleSegment[] | null
     }));
     
-    if (transformedVideos.length < PAGE_SIZE) {
+    if ((data || []).length < PAGE_SIZE) {
       hasMoreRef.current = false;
       setHasMore(false);
     }
 
-    // Shuffle videos for variety
-    const shuffledVideos = shuffleArray(transformedVideos);
+    // Stable ordering lets the next-reel buffer stay useful.
+    const nextVideos = transformedVideos;
     
     if (reset) {
-      videosRef.current = shuffledVideos;
-      setVideos(shuffledVideos);
+      videosRef.current = nextVideos;
+      setVideos(nextVideos);
       setPage(0);
-      hasMoreRef.current = transformedVideos.length === PAGE_SIZE;
-      setHasMore(transformedVideos.length === PAGE_SIZE);
+      hasMoreRef.current = (data || []).length === PAGE_SIZE;
+      setHasMore((data || []).length === PAGE_SIZE);
     } else {
-      const merged = [...videosRef.current, ...shuffledVideos];
+      const existing = new Set(videosRef.current.map(video => video.id));
+      const merged = [...videosRef.current, ...nextVideos.filter(video => !existing.has(video.id))];
       videosRef.current = merged;
       setVideos(merged);
     }
@@ -279,49 +241,11 @@ const Feed = () => {
     }
   };
 
-  // Preload next video conservatively to avoid PWA/mobile freezes
-  const preloadVideo = useCallback((video: Video) => {
-    const connection = (navigator as Navigator & {
-      connection?: {
-        saveData?: boolean;
-        effectiveType?: string;
-      };
-    }).connection;
-
-    const isStandalonePwa = typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches;
-    const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
-    const isConstrainedNetwork = Boolean(connection?.saveData) || ['slow-2g', '2g', '3g'].includes(connection?.effectiveType || '');
-    const videoUrl = chooseToonPreloadSource(video.video_url, video.video_variants, isStandalonePwa || isTouchDevice || isConstrainedNetwork);
-
-    if (preloadedVideosRef.current.has(videoUrl)) return;
-
-    if (isStandalonePwa || isTouchDevice || isConstrainedNetwork) {
-      return;
-    }
-
-    preloadedVideosRef.current.add(videoUrl);
-    const link = document.createElement('link');
-    link.rel = 'prefetch';
-    link.as = 'video';
-    link.href = videoUrl;
-    link.crossOrigin = 'anonymous';
-    document.head.appendChild(link);
-
-    setTimeout(() => link.remove(), 5000);
-
-    if (preloadedVideosRef.current.size > 1) {
-      const firstKey = preloadedVideosRef.current.values().next().value;
-      if (firstKey) {
-        preloadedVideosRef.current.delete(firstKey);
-      }
-    }
-  }, []);
-
   // Handle scroll snap to detect active video and load more - uses refs to avoid dependency churn
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const scrollTop = containerRef.current.scrollTop;
-    const height = window.innerHeight;
+    const height = containerRef.current.clientHeight;
     const newIndex = Math.round(scrollTop / height);
     const vids = videosRef.current;
     
@@ -331,17 +255,13 @@ const Feed = () => {
       activeIndexRef.current = newIndex;
       setActiveIndex(newIndex);
       
-      // Preload only the next video to reduce memory/network pressure
-      if (vids[newIndex + 1]) {
-        preloadVideo(vids[newIndex + 1]);
-      }
     }
     
     // Load more when near the end (3 videos before last) - use refs to avoid stale closures
     if (newIndex >= vids.length - 3 && hasMoreRef.current && !isLoadingMoreRef.current) {
       loadMoreVideos();
     }
-  }, [triggerScrollHaptic, preloadVideo, loadMoreVideos]);
+  }, [triggerScrollHaptic, loadMoreVideos]);
 
   // Swipe gesture handlers with acceleration
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -398,7 +318,7 @@ const Feed = () => {
         // Swipe up - next video with acceleration
         const targetIndex = activeIndex + 1;
         container.scrollTo({
-          top: targetIndex * window.innerHeight,
+          top: targetIndex * containerRef.current.clientHeight,
           behavior: 'smooth'
         });
         triggerScrollHaptic();
@@ -407,7 +327,7 @@ const Feed = () => {
         // Swipe down - previous video with acceleration
         const targetIndex = activeIndex - 1;
         container.scrollTo({
-          top: targetIndex * window.innerHeight,
+          top: targetIndex * containerRef.current.clientHeight,
           behavior: 'smooth'
         });
         triggerScrollHaptic();
@@ -429,61 +349,24 @@ const Feed = () => {
   if (isLoading) {
     return (
       <ResponsiveLayout>
-        <div className="h-screen w-full overflow-hidden bg-black">
+        <div className="reel-viewport w-full overflow-hidden bg-black">
           <VideoSkeleton />
         </div>
       </ResponsiveLayout>
     );
   }
 
-  const handleTabChange = async (tab: 'forYou' | 'following') => {
-    if (tab === activeTab) return;
-    setActiveTab(tab);
-    activeIndexRef.current = 0;
-    setActiveIndex(0);
-    setPage(0);
-    hasMoreRef.current = true;
-    setHasMore(true);
-    videosRef.current = [];
-    setVideos([]);
-    if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0 });
-    }
-    await fetchVideos(0, true, blockedUserIds, tab, followingIds);
-  };
-
   if (videos.length === 0 && !isLoading) {
     return (
       <ResponsiveLayout>
-        <div className="min-h-screen bg-black flex flex-col">
-          {/* Tab header */}
-          <div className="fixed top-0 left-0 right-0 z-40 flex justify-center gap-6 py-4 bg-gradient-to-b from-black/80 to-transparent md:left-56 lg:left-64">
-            <button
-              onClick={() => handleTabChange('forYou')}
-              className={`text-sm font-semibold transition-colors ${
-                activeTab === 'forYou' ? 'text-white' : 'text-white/50'
-              }`}
-            >
-              For You
-            </button>
-            <button
-              onClick={() => handleTabChange('following')}
-              className={`text-sm font-semibold transition-colors ${
-                activeTab === 'following' ? 'text-white' : 'text-white/50'
-              }`}
-            >
-              Following
-            </button>
-          </div>
+        <div className="reel-viewport bg-black flex flex-col">
           <div className="flex-1 flex items-center justify-center pb-24">
             <div className="text-center">
               <h2 className="text-2xl font-black mb-2 text-white">
-                {activeTab === 'following' ? 'No videos from followed creators' : 'No videos yet!'}
+                No videos yet!
               </h2>
               <p className="text-white/60">
-                {activeTab === 'following' 
-                  ? 'Follow some creators to see their content here' 
-                  : 'Check back later for amazing animations'}
+                Check back later for amazing animations
               </p>
             </div>
           </div>
@@ -496,7 +379,7 @@ const Feed = () => {
     <ResponsiveLayout>
       <div 
         ref={containerRef}
-        className="h-screen w-full overflow-y-scroll bg-black scrollbar-hide"
+        className="reel-viewport w-full overflow-y-scroll bg-black scrollbar-hide"
         style={{ 
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
@@ -509,25 +392,6 @@ const Feed = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Tab header */}
-        <div className="fixed top-0 left-0 right-0 z-40 flex justify-center gap-6 py-4 bg-gradient-to-b from-black/80 to-transparent md:left-56 lg:left-64">
-          <button
-            onClick={() => handleTabChange('forYou')}
-            className={`text-sm font-semibold transition-colors ${
-              activeTab === 'forYou' ? 'text-white' : 'text-white/50'
-            }`}
-          >
-            For You
-          </button>
-          <button
-            onClick={() => handleTabChange('following')}
-            className={`text-sm font-semibold transition-colors ${
-              activeTab === 'following' ? 'text-white' : 'text-white/50'
-            }`}
-          >
-            Following
-          </button>
-        </div>
 
         {/* Pull to refresh indicator */}
         {pullDistance > 0 && (
@@ -550,14 +414,13 @@ const Feed = () => {
           return (
             <div 
               key={video.id} 
-              className="h-screen w-full flex-shrink-0"
+              className="h-full w-full flex-shrink-0"
               style={{ 
                 scrollSnapAlign: 'start',
                 willChange: index === activeIndex ? 'transform' : 'auto',
                 transform: 'translateZ(0)',
                 contain: 'layout style paint',
-                contentVisibility: shouldRender ? 'visible' : 'auto',
-                containIntrinsicSize: '0 100vh'
+                contentVisibility: 'visible'
               }}
             >
               {shouldRender ? (
@@ -566,6 +429,9 @@ const Feed = () => {
                   currentUserId={currentUserId}
                   isPremium={isPremium}
                   isActive={index === activeIndex}
+                  warmup={index === activeIndex + 1 && warmAfterId === videos[activeIndex]?.id}
+                  onPlaybackStarted={() => setWarmAfterId(video.id)}
+                  aboveBottomNav
                   onCommentsClick={() => setSelectedVideoId(video.id)}
                   onDelete={video.creator_id === currentUserId ? () => handleDeleteVideo(video.id) : undefined}
                   onPositiveAction={trackPositiveAction}
@@ -579,7 +445,7 @@ const Feed = () => {
         
         {/* Loading more indicator */}
         {isLoadingMore && (
-          <div className="h-screen w-full flex items-center justify-center bg-black snap-start">
+          <div className="h-full w-full flex items-center justify-center bg-black snap-start">
             <Loader2 className="h-8 w-8 text-white animate-spin" />
           </div>
         )}

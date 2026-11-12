@@ -180,6 +180,18 @@ const Profile = () => {
     loadProfile();
   }, [userIdParam]);
 
+  useEffect(() => {
+    if (!currentUserId) return;
+    const target = userIdParam || currentUserId;
+    const refresh = () => { void fetchStatsCounts(target); void fetchUserVideos(target); void fetchSavedVideos(target); };
+    const channel = supabase.channel(`profile-counts:${target}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${target}` }, () => { void fetchProfileData(target); })
+      .subscribe(status => { if (status === 'SUBSCRIBED') refresh(); });
+    const timer = window.setInterval(refresh, 15000);
+    return () => { window.clearInterval(timer); void supabase.removeChannel(channel); };
+  }, [currentUserId, userIdParam]);
+
   const fetchVerificationStatus = async (userId: string) => {
     const { data } = await supabase
       .from('creator_verifications')
@@ -473,22 +485,31 @@ const Profile = () => {
   };
 
   const handleUsernameUpdate = async () => {
-    if (!newUsername.trim()) return;
+    const username = newUsername.trim();
+    if (!/^[A-Za-z0-9_]{3,30}$/.test(username)) {
+      toast.error('Use 3–30 letters, numbers, or underscores');
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .update({ username: newUsername })
-        .eq('id', user.id);
+        .update({ username })
+        .eq('id', user.id)
+        .select('username')
+        .single();
+      if (error) throw error;
+      setNewUsername(data.username);
+      setProfile(previous => previous ? { ...previous, username: data.username } : previous);
 
       toast.success('Username updated!');
       setEditingUsername(false);
       fetchProfileData(user.id);
     } catch (error) {
-      toast.error('Failed to update username');
+      toast.error((error as { code?: string }).code === '23505' ? 'That username is already taken' : 'Could not save username. Please try again.');
     }
   };
 
@@ -759,7 +780,9 @@ const Profile = () => {
                     <Input
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
-                      className="max-w-xs text-white font-black"
+                      className="max-w-xs bg-background text-foreground border-input font-black"
+                      aria-label="Username"
+                      maxLength={30}
                       placeholder="New username"
                     />
                     <Button size="sm" onClick={handleUsernameUpdate}>Save</Button>

@@ -1,24 +1,18 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.e97ab73c05cf482e9177c2c702a4a0b7',
+  appId: 'com.semogroup.toonlyreels',
   appName: 'ToonlyReels',
   webDir: 'dist',
-  server: {
-    url: 'https://e97ab73c-05cf-482e-9177-c2c702a4a0b7.lovableproject.com?forceHideBadge=true',
-    cleartext: true
+  plugins: {
+    // MainActivity applies native system-bar/keyboard insets once for every page.
+    SystemBars: { insetsHandling: 'disable', style: 'DARK', hidden: false },
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: false
+    webContentsDebuggingEnabled: false,
   },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 0,
-      launchAutoHide: true
-    }
-  }
 };
 
 export default config;

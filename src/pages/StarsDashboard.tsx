@@ -76,33 +76,13 @@ const StarsDashboard = () => {
   };
 
   const checkEligibility = async () => {
-    const eligible = followers >= ELIGIBILITY_FOLLOWERS && totalWatchHours >= ELIGIBILITY_WATCH_HOURS;
-    
-    const { data: existing } = await supabase
-      .from('creator_monetization')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from('creator_monetization')
-        .update({ is_eligible: eligible, eligibility_checked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-    } else {
-      await supabase
-        .from('creator_monetization')
-        .insert({ user_id: userId, is_eligible: eligible });
-    }
-
+    const { data: eligible, error } = await supabase.rpc('check_monetization_eligibility');
+    if (error) { toast.error('Could not check eligibility. Please try again.'); return; }
     setMonetization(prev => prev ? { ...prev, is_eligible: eligible } : {
       is_eligible: eligible, total_stars_earned: 0, total_withdrawn: 0,
-      pending_balance: 0, revenue_split_creator: 70, revenue_split_platform: 30
+      pending_balance: 0, revenue_split_creator: 70, revenue_split_platform: 30,
     });
-
-    toast[eligible ? 'success' : 'info'](
-      eligible ? 'You are eligible for monetization! 🎉' : 'Not eligible yet. Keep growing!'
-    );
+    toast[eligible ? 'success' : 'info'](eligible ? 'You are eligible for monetization!' : 'Not eligible yet. Keep growing!');
   };
 
   const followerProgress = Math.min((followers / ELIGIBILITY_FOLLOWERS) * 100, 100);

@@ -1,8 +1,9 @@
+import { authorize } from '../_shared/authorize.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +21,13 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const denied = await authorize(req, 'user', 'report');
+  if (denied) return denied;
+
   try {
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendKey) return new Response(JSON.stringify({ error: 'Email delivery is not configured' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const resend = new Resend(resendKey);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
@@ -51,6 +58,15 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
+    }
+
+    if (recipientEmail.toLowerCase() !== user.email?.toLowerCase() || !user.email_confirmed_at) {
+      return new Response(JSON.stringify({ error: 'Reports can only be sent to your verified account email' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: permitted, error: permissionError } = await callerClient.rpc('can_access_report', { _user_id: userId });
+    if (permissionError || !permitted) {
+      return new Response(JSON.stringify({ error: 'Parent or verified guardian access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Get user profile
@@ -152,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
     const avatar = profile?.selected_avatar || '🦊';
 
     const emailResponse = await resend.emails.send({
-      from: "ToonlyReels <onboarding@resend.dev>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "ToonlyReels <onboarding@resend.dev>",
       to: [recipientEmail],
       subject: `${username}'s ToonlyReels Monthly Report - ${currentMonth}`,
       html: `
@@ -265,7 +281,7 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Monthly report sent:", emailResponse);
+    if (emailResponse.error) throw new Error("Report email could not be delivered");
 
     return new Response(
       JSON.stringify({ 

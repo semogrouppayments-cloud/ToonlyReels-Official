@@ -1,3 +1,4 @@
+import { authorize } from '../_shared/authorize.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -11,6 +12,9 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denied = await authorize(req, 'job');
+  if (denied) return denied;
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -31,45 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select("user_id, email")
       .eq("enabled", true);
 
-    if (settingsError) {
-      console.log("No monthly_report_settings table or no enabled reports, checking all viewer profiles...");
-      
-      // Fallback: Get all viewer profiles and their parental controls
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, selected_avatar")
-        .eq("user_type", "viewer");
-
-      if (profilesError || !profiles?.length) {
-        console.log("No viewer profiles found");
-        return new Response(JSON.stringify({ message: "No users to send reports to" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-
-      console.log(`Found ${profiles.length} viewer profiles`);
-      let sentCount = 0;
-
-      for (const profile of profiles) {
-        try {
-          // Get user's auth email
-          const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-          if (!authUser?.user?.email) continue;
-
-          const email = authUser.user.email;
-          await sendMonthlyReport(supabase, resend, profile.id, email, profile);
-          sentCount++;
-        } catch (err) {
-          console.error(`Failed to send report for user ${profile.id}:`, err);
-        }
-      }
-
-      return new Response(JSON.stringify({ message: `Sent ${sentCount} monthly reports` }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    if (settingsError) throw settingsError;
 
     if (!reportSettings?.length) {
       console.log("No users with enabled monthly reports");

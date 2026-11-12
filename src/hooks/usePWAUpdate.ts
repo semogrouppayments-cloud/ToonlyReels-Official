@@ -127,9 +127,7 @@ export const usePWAUpdate = () => {
         console.log('All service workers unregistered');
       }
 
-      // Clear localStorage and sessionStorage
-      localStorage.clear();
-      sessionStorage.clear();
+      // Retain consent/account preferences when clearing cached app assets.
 
       toast.success('Cache cleared! Reloading...', { duration: 1500 });
       

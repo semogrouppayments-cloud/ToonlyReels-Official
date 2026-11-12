@@ -50,8 +50,8 @@ const PrivacyPolicy = () => {
                 you use our mobile application.
               </p>
               <p className="font-semibold text-foreground">
-                ToonlyReels is designed for children ages 4-15 and participates in the Google Play 
-                "Designed for Families" program. We are fully COPPA compliant.
+                ToonlyReels is intended for family use with parental supervision.
+                This development build does not claim Google Play Families certification.
               </p>
             </section>
 

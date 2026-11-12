@@ -75,11 +75,12 @@ const ParentDashboard = () => {
     if (!userId || !pin) return;
 
     try {
-      const { data: isValid } = await supabase.rpc('verify_parental_pin', {
+      const { data: isValid, error } = await supabase.rpc('verify_parental_pin', {
         _user_id: userId,
         _raw_pin: pin,
       });
 
+      if (error) throw error;
       if (isValid) {
         setIsAuthenticated(true);
         await fetchActivityData();
@@ -89,10 +90,7 @@ const ParentDashboard = () => {
         toast.error('Invalid PIN');
       }
     } catch (error) {
-      // If no PIN set, allow access
-      setIsAuthenticated(true);
-      await fetchActivityData();
-      await fetchSettings();
+      toast.error('Could not verify your PIN. Access remains locked.');
     }
   };
 
@@ -164,7 +162,7 @@ const ParentDashboard = () => {
     if (!userId) return;
 
     try {
-      await supabase.from('parental_controls').upsert({
+      const { error } = await supabase.from('parental_controls').upsert({
         user_id: userId,
         screen_time_limit: settings.screenTimeLimit,
         school_hours_lock: settings.schoolHoursLock,
@@ -174,6 +172,7 @@ const ParentDashboard = () => {
         bedtime_start: settings.bedtimeStart,
         bedtime_end: settings.bedtimeEnd,
       });
+      if (error) throw error;
       toast.success('Settings saved');
     } catch (error) {
       toast.error('Failed to save settings');

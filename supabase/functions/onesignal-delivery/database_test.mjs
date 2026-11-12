@@ -1,0 +1,88 @@
+// Isolated PostgreSQL behavioural fixture; no production credentials or network.
+// Install @electric-sql/pglite in a temporary folder and set PGLITE_MODULE to its dist/index.js URL.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const db = new PGlite();
+const owner='11111111-1111-4111-8111-111111111111';
+const actor='22222222-2222-4222-8222-222222222222';
+const video='33333333-3333-4333-8333-333333333333';
+const notification='44444444-4444-4444-8444-444444444444';
+const notificationOff='55555555-5555-4555-8555-555555555555';
+async function sql(text) { return db.exec(text); }
+async function role(name, id='') { await sql('RESET ROLE'); await db.query("SELECT set_config('request.jwt.claim.role',$1,false),set_config('request.jwt.claim.sub',$2,false)",[name,id]); if(name==='authenticated') await sql('SET ROLE authenticated'); }
+try {
+ await sql(`CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;
+ CREATE SCHEMA auth; CREATE SCHEMA private;
+ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+ CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.role',true),'') $$;
+ CREATE TABLE public.profiles(id uuid PRIMARY KEY);
+ CREATE TABLE public.videos(id uuid PRIMARY KEY,creator_id uuid,moderation_status text);
+ CREATE TABLE public.comments(id uuid PRIMARY KEY,user_id uuid,video_id uuid);
+ CREATE TABLE public.likes(user_id uuid,video_id uuid);
+ CREATE TABLE public.comment_likes(user_id uuid,comment_id uuid);
+ CREATE TABLE public.follows(follower_id uuid,following_id uuid);
+ CREATE TABLE public.blocks(blocker_id uuid,blocked_id uuid);
+ CREATE TABLE public.notification_preferences(user_id uuid PRIMARY KEY,push_enabled boolean DEFAULT false,likes_enabled boolean DEFAULT true,comments_enabled boolean DEFAULT true,replies_enabled boolean DEFAULT true,follows_enabled boolean DEFAULT true,new_videos_enabled boolean DEFAULT true,sound_enabled boolean DEFAULT true);
+ CREATE TABLE public.notifications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,actor_id uuid,type text,video_id uuid,comment_id uuid);
+ CREATE TABLE public.moderation_actions(moderator_id uuid,target_type text,target_id uuid,action text,reason text);
+ CREATE FUNCTION public.has_role(_user_id uuid,_role text) RETURNS boolean LANGUAGE sql AS $$ SELECT _user_id='11111111-1111-4111-8111-111111111111'::uuid AND _role='admin' $$;
+ CREATE TABLE public.notification_delivery_logs(notification_id uuid,user_id uuid,event_type text,dedupe_key text,provider_id text,response_code integer,status text);
+ GRANT USAGE ON SCHEMA public,auth TO authenticated,service_role;
+ `);
+ const migration=readFileSync(new URL('../../migrations/20261112030000_onesignal_delivery.sql',import.meta.url),'utf8');
+ await sql(migration);await sql(migration);
+ await db.query('INSERT INTO profiles VALUES($1),($2)',[owner,actor]);
+ await db.query('INSERT INTO notification_preferences(user_id) VALUES($1)',[owner]);
+ await db.query("INSERT INTO videos VALUES($1,$2,'approved')",[video,owner]);
+ await db.query('INSERT INTO likes VALUES($1,$2)',[actor,video]);
+ await db.query("INSERT INTO notifications VALUES($1,$2,$3,'like',$4,NULL)",[notificationOff,owner,actor,video]);
+ assert.equal((await db.query('SELECT count(*) n FROM private.notification_push_outbox')).rows[0].n,0,'master-off event enqueued');
+ await db.query('UPDATE notification_preferences SET push_enabled=true WHERE user_id=$1',[owner]);
+ await db.query("INSERT INTO notifications VALUES($1,$2,$3,'like',$4,NULL)",[notification,owner,actor,video]);
+ assert.equal((await db.query('SELECT count(*) n FROM private.notification_push_outbox')).rows[0].n,1,'eligible notification not enqueued');
+ await role('authenticated',actor);
+ await assert.rejects(()=>db.query('SELECT * FROM private.notification_push_outbox'));
+ await assert.rejects(()=>db.query('SELECT public.claim_onesignal_notifications(10)'));
+ await assert.rejects(()=>db.query('SELECT public.configure_onesignal_delivery($1)',['x'.repeat(32)]));
+ for(let index=0;index<30;index++) assert.equal((await db.query('SELECT public.consume_push_identity_quota() allowed')).rows[0].allowed,true);
+ assert.equal((await db.query('SELECT public.consume_push_identity_quota() allowed')).rows[0].allowed,false);
+ await role('service_role');
+ const first=(await db.query('SELECT * FROM public.claim_onesignal_notifications(10)')).rows;
+ assert.equal(first.length,1);assert.equal(first[0].user_id,owner);
+ assert.equal((await db.query('SELECT * FROM public.claim_onesignal_notifications(10)')).rows.length,0,'leased twice');
+ assert.equal((await db.query('SELECT public.onesignal_notification_allowed($1,$2) allowed',[notification,first[0].lease_id])).rows[0].allowed,true);
+ await db.query('INSERT INTO blocks VALUES($1,$2)',[owner,actor]);
+ assert.equal((await db.query('SELECT public.onesignal_notification_allowed($1,$2) allowed',[notification,first[0].lease_id])).rows[0].allowed,false,'block ignored after claim');
+ await db.query('DELETE FROM blocks');
+ await db.query("SELECT public.finish_onesignal_notification($1,$2,'retry',NULL,'provider_http_503',503)",[notification,first[0].lease_id]);
+ assert.equal((await db.query('SELECT * FROM public.claim_onesignal_notifications(10)')).rows.length,0,'retry backoff ignored');
+ await db.query("UPDATE private.notification_push_outbox SET available_at=now()-interval '1 second'");
+ const second=(await db.query('SELECT * FROM public.claim_onesignal_notifications(10)')).rows[0];
+ assert.notEqual(second.lease_id,first[0].lease_id);
+ assert.equal((await db.query("SELECT public.finish_onesignal_notification($1,$2,'sent','late',NULL,200) accepted",[notification,first[0].lease_id])).rows[0].accepted,false,'stale lease ack accepted');
+ await db.query("SELECT public.finish_onesignal_notification($1,$2,'sent','provider-message',NULL,200)",[notification,second.lease_id]);
+ assert.equal((await db.query('SELECT status FROM private.notification_push_outbox')).rows[0].status,'sent');
+ assert.equal((await db.query('SELECT count(*) n FROM notification_delivery_logs')).rows[0].n,2);
+ await db.query('UPDATE notification_preferences SET likes_enabled=false');
+ await db.query("INSERT INTO notifications VALUES('66666666-6666-4666-8666-666666666666',$1,$2,'like',$3,NULL)",[owner,actor,video]);
+ assert.equal((await db.query('SELECT count(*) n FROM private.notification_push_outbox')).rows[0].n,1,'type preference ignored');
+ await db.query('UPDATE notification_preferences SET likes_enabled=true');
+ await db.query("UPDATE videos SET moderation_status='pending'");
+ await db.query("INSERT INTO notifications VALUES('77777777-7777-4777-8777-777777777777',$1,$2,'like',$3,NULL)",[owner,actor,video]);
+ assert.equal((await db.query('SELECT count(*) n FROM private.notification_push_outbox')).rows[0].n,1,'pending video notification leaked');
+ // Publication through manual SQL and the review RPC must each emit one follower event.
+ await db.query('INSERT INTO notification_preferences(user_id,push_enabled) VALUES($1,true)',[actor]);
+ await db.query('INSERT INTO follows VALUES($1,$2)',[actor,owner]);
+ await db.query("UPDATE videos SET moderation_status='approved'");
+ assert.equal((await db.query("SELECT count(*) n FROM notifications WHERE type='new_video'")).rows[0].n,1);
+ await db.query("UPDATE videos SET moderation_status='approved'");
+ assert.equal((await db.query("SELECT count(*) n FROM notifications WHERE type='new_video'")).rows[0].n,1,'unchanged approval emitted twice');
+ await db.query("UPDATE videos SET moderation_status='pending'");
+ await role('authenticated',owner);
+ await db.query("SELECT public.review_video($1,'approved','Reviewed in test')",[video]);
+ await role('service_role');
+ assert.equal((await db.query("SELECT count(*) n FROM notifications WHERE type='new_video'")).rows[0].n,2,'RPC and trigger emitted duplicate publication alerts');
+ assert.equal((await db.query("SELECT count(*) n FROM private.notification_push_outbox WHERE status='pending'")).rows[0].n,2);
+ console.log('PASS: migration repeat, push/type opt-out, private outbox, restricted worker RPCs, identity quota, lease dedup, retry backoff, stale acknowledgements, blocks, pending-video privacy provider audit log, manual publication and approval-RPC deduplication.');
+} finally { await db.close(); }

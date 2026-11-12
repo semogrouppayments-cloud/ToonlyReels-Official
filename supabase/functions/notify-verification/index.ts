@@ -1,7 +1,11 @@
+import { authorize } from '../_shared/authorize.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
 
 const ALLOWED_ORIGINS = [
+  'https://localhost',
+  'capacitor://localhost',
+  ...(Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean),
   'https://lovable.dev',
   'https://www.lovable.dev',
   'http://localhost:5173',
@@ -31,20 +35,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const denied = await authorize(req, 'user');
+  if (denied) return denied;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { verification_id, user_id, full_name, business_email, username } = await req.json();
-
-    if (!verification_id || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'verification_id and user_id are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { verification_id } = await req.json();
+    const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+    const { data: { user } } = await supabase.auth.getUser(token);
+    const { data: submission, error } = await supabase.from('creator_verifications').select('*, profiles!creator_verifications_user_id_fkey(username)').eq('id', verification_id).eq('user_id', user?.id).single();
+    if (error || !submission) return new Response(JSON.stringify({ error: 'Submission not found' }), { status: 404, headers: corsHeaders });
+    const { user_id, full_name, business_email } = submission;
+    const username = submission.profiles?.username || 'Creator';
 
     // Get admin emails from user_roles
     const { data: adminRoles } = await supabase

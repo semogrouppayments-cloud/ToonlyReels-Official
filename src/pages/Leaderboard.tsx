@@ -30,19 +30,13 @@ const Leaderboard = () => {
 
   const fetchLeaderboards = async () => {
     try {
-      // Top earners - creators with most stars earned
-      const { data: earners } = await supabase
-        .from('creator_monetization')
-        .select('user_id, total_stars_earned')
-        .order('total_stars_earned', { ascending: false })
-        .limit(20);
-
-      // Top gifters - users who spent most stars
-      const { data: gifters } = await supabase
-        .from('star_balances')
-        .select('user_id, total_spent')
-        .order('total_spent', { ascending: false })
-        .limit(20);
+      const [{ data: earned, error: earnedError }, { data: spent, error: spentError }] = await Promise.all([
+        supabase.rpc('star_leaderboard', { _kind: 'earned' }),
+        supabase.rpc('star_leaderboard', { _kind: 'spent' }),
+      ]);
+      if (earnedError || spentError) throw earnedError || spentError;
+      const earners = earned?.map(row => ({ user_id: row.user_id, total_stars_earned: row.amount }));
+      const gifters = spent?.map(row => ({ user_id: row.user_id, total_spent: row.amount }));
 
       // Get profile info for all users
       const allUserIds = [

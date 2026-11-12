@@ -1,10 +1,82 @@
-project_id = "jziwagvbdomyaewcgpwa"
+project_id = "toonlyreels"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 16
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+file_size_limit = "250MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080/auth", "http://127.0.0.1:8080/auth", "com.semogroup.toonlyreels://auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+# Modern Supabase session JWTs are validated inside every handler.
+
+[functions.batch-transcribe-videos]
+verify_jwt = false
+
+[functions.cleanup-orphaned-videos]
+verify_jwt = false
 
 [functions.delete-account]
-verify_jwt = true
+verify_jwt = false
 
 [functions.download-video]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-video-url]
-verify_jwt = true
+verify_jwt = false
+
+[functions.notify-verification]
+verify_jwt = false
+
+[functions.reset-pin]
+verify_jwt = false
+
+[functions.scheduled-cleanup]
+verify_jwt = false
+
+[functions.scheduled-monthly-report]
+verify_jwt = false
+
+[functions.send-monthly-report]
+verify_jwt = false
+
+[functions.storage-analytics]
+verify_jwt = false
+
+[functions.toonlyai-chat]
+verify_jwt = false
+
+[functions.transcribe-video]
+verify_jwt = false
+
+[functions.update-verification-status]
+verify_jwt = false
+
+[functions.weekly-creator-digest]
+verify_jwt = false
+
+[functions.onesignal-delivery]
+verify_jwt = false

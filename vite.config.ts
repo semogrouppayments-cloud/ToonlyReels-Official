@@ -20,37 +20,31 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
-        name: 'ToonlyReels - Animated Fun for Kids',
+        id: '/',
+        name: 'ToonlyReels',
         short_name: 'ToonlyReels',
-        description: 'Watch and share amazing animated cartoons for kids',
+        description: 'Watch and share animated reels.',
+        start_url: '/?source=pwa',
+        scope: '/',
         theme_color: '#FF6B6B',
         background_color: '#FFFFFF',
         display: 'standalone',
-        orientation: 'portrait',
         icons: [
-          {
-            src: '/toonreels-icon.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/toonreels-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
+          { src: '/pwa-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        navigateFallbackDenylist: [/^\/~oauth/],
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/downloads\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        globIgnores: ['**/downloads/**'],
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.mode === 'navigate',
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/downloads/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'html-navigation-cache',
@@ -61,18 +55,7 @@ export default defineConfig(({ mode }) => ({
               }
             }
           },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'app-data-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 10 * 60
-              }
-            }
-          }
+
         ]
       }
     })

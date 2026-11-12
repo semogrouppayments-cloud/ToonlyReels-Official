@@ -1,3 +1,5 @@
+import { readSavedAccounts } from '@/lib/savedAccounts';
+import { authRedirectUrl } from '@/lib/native';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,10 +113,10 @@ const Auth = () => {
   };
 
   const checkIfAccountNeedsSavePrompt = (userId: string) => {
-    const savedAccounts = JSON.parse(localStorage.getItem('toonreels_saved_accounts') || '[]');
-    const existingAccount = savedAccounts.find((acc: any) => acc.id === userId);
+    const savedAccounts = readSavedAccounts();
+    const existingAccount = savedAccounts.find((acc) => acc.id === userId);
     // Show prompt if account doesn't exist or doesn't have login saved
-    return !existingAccount || !existingAccount.loginSaved;
+    return !existingAccount || !existingAccount.remembered;
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -132,7 +134,7 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/feed`,
+            emailRedirectTo: authRedirectUrl(),
             data: {
               username,
               user_type: userType,
@@ -142,7 +144,12 @@ const Auth = () => {
 
         if (error) throw error;
         
-        if (data.user) {
+        if (data.user && !data.session) {
+          toast.success('Check your email to confirm your account, then sign in.');
+          setIsSignUp(false);
+          return;
+        }
+        if (data.user && data.session) {
           const roleLabel = userType === 'creative' ? '🎨 Creator' : '👀 Viewer';
           toast.success(`Account created as ${roleLabel}!`);
           
@@ -346,6 +353,9 @@ const Auth = () => {
               className="text-xs text-muted-foreground hover:text-primary hover:underline block"
             >
               Terms of Use
+            </a>
+            <a href="/install" className="text-sm text-primary hover:underline block">
+              Install app or download APK
             </a>
           </div>
         </CardContent>

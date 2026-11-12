@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Bell, Play, X, ArrowLeft } from 'lucide-react';
+import BrandNotificationIcon from '@/components/BrandNotificationIcon';
+import { useState, useEffect, useRef } from 'react';
+import { Play, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -58,6 +59,9 @@ const NotificationBell = () => {
     sound_enabled: true,
   });
 
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
+
   useEffect(() => {
     fetchNotificationPreferences();
     fetchNotifications();
@@ -77,25 +81,21 @@ const NotificationBell = () => {
           
           // Check if this type of notification is enabled
           const typeEnabled = 
-            (newNotification.type === 'like' && preferences.likes_enabled) ||
-            (newNotification.type === 'comment' && preferences.comments_enabled) ||
-            (newNotification.type === 'follow' && preferences.follows_enabled) ||
-            (newNotification.type === 'reply' && preferences.replies_enabled) ||
-            (newNotification.type === 'new_video' && preferences.new_videos_enabled);
+            (newNotification.type === 'like' && preferencesRef.current.likes_enabled) ||
+            (newNotification.type === 'comment' && preferencesRef.current.comments_enabled) ||
+            (newNotification.type === 'follow' && preferencesRef.current.follows_enabled) ||
+            (newNotification.type === 'reply' && preferencesRef.current.replies_enabled) ||
+            (newNotification.type === 'new_video' && preferencesRef.current.new_videos_enabled);
           
           if (typeEnabled) {
             // Play sound if enabled
-            if (preferences.sound_enabled) {
+            if (preferencesRef.current.sound_enabled) {
               playNotificationSound();
             }
             
             // Trigger haptic feedback
             triggerHapticFeedback();
             
-            // Show push notification if enabled and supported
-            if (preferences.push_enabled && 'Notification' in window) {
-              showPushNotification(newNotification);
-            }
           }
           
           fetchNotifications();
@@ -106,7 +106,7 @@ const NotificationBell = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [preferences]);
+  }, []);
 
   const fetchNotificationPreferences = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -134,22 +134,6 @@ const NotificationBell = () => {
   const triggerHapticFeedback = () => {
     if ('vibrate' in navigator) {
       navigator.vibrate(200);
-    }
-  };
-
-  const showPushNotification = async (notification: any) => {
-    if (Notification.permission === 'granted') {
-      const registration = await navigator.serviceWorker.ready;
-      registration.showNotification('ToonlyReels', {
-        body: getNotificationText(notification),
-        icon: '/toonreels-logo.png',
-        badge: '/toonreels-logo.png',
-      });
-    } else if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        showPushNotification(notification);
-      }
     }
   };
 
@@ -294,7 +278,7 @@ const NotificationBell = () => {
       case 'star_gift':
         return '⭐';
       default:
-        return '🔔';
+        return <BrandNotificationIcon className="h-6 w-6" />;
     }
   };
 
@@ -383,11 +367,12 @@ const NotificationBell = () => {
       }}>
         <SheetTrigger asChild>
           <Button
+            aria-label="Notifications"
             variant="secondary"
             size="icon"
             className="rounded-full relative"
           >
-            <Bell className="h-5 w-5" />
+            <BrandNotificationIcon className="h-5 w-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -435,7 +420,7 @@ const NotificationBell = () => {
                 <div className="space-y-2">
                   {notifications.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <BrandNotificationIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No notifications yet</p>
                     </div>
                   ) : (

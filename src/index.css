@@ -192,3 +192,16 @@ All colors MUST be HSL.
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(8px);
 }
+
+/* Shared safe viewport for PWA and native content. Native insets are applied by Android. */
+:root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px); }
+#root { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+.reel-viewport { height: calc(100dvh - var(--safe-top) - var(--safe-bottom)); }
+@media (max-width: 767px) {
+  /* Reserve the bottom bar and raised upload button; reels start at the safe top. */
+  .reel-viewport { height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 112px); }
+}
+#root .fixed.inset-0 { top: var(--safe-top); bottom: var(--safe-bottom); }
+#root .sticky.top-0 { top: var(--safe-top); }
+video::-webkit-media-controls, video::-webkit-media-controls-start-playback-button { display: none !important; }
+#root .fixed.top-0 { top: var(--safe-top); }

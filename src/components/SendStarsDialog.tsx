@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,8 @@ interface SendStarsDialogProps {
 const STAR_AMOUNTS = [1, 5, 10, 50, 100, 500];
 
 const SendStarsDialog = ({ open, onOpenChange, creatorId, creatorUsername, videoId, currentUserId }: SendStarsDialogProps) => {
+  const requestRef = useRef<{ id: string; amount: number } | null>(null);
+  const sendingRef = useRef(false);
   const [balance, setBalance] = useState(0);
   const [selectedAmount, setSelectedAmount] = useState(5);
   const [sending, setSending] = useState(false);
@@ -48,127 +50,37 @@ const SendStarsDialog = ({ open, onOpenChange, creatorId, creatorUsername, video
       .select('*')
       .eq('is_active', true)
       .order('stars_amount');
-    setStarPacks((data as any[]) || []);
-  };
-
-  const handleBuyStars = async (packId: string, amount: number) => {
-    // Mock purchase - in production this would go through Stripe
-    try {
-      // Upsert balance
-      const { data: existing } = await supabase
-        .from('star_balances')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase
-          .from('star_balances')
-          .update({ 
-            balance: (existing as any).balance + amount,
-            total_spent: (existing as any).total_spent + amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', currentUserId);
-      } else {
-        await supabase
-          .from('star_balances')
-          .insert({ user_id: currentUserId, balance: amount, total_spent: 0, total_earned: 0 });
-      }
-
-      // Record transaction
-      await supabase.from('star_transactions').insert({
-        from_user_id: currentUserId,
-        to_user_id: currentUserId,
-        amount,
-        type: 'purchase'
-      });
-
-      setBalance(prev => prev + amount);
-      setShowBuySection(false);
-      toast.success(`Purchased ${amount} ⭐ stars!`);
-    } catch {
-      toast.error('Failed to purchase stars');
-    }
+    setStarPacks(data || []);
   };
 
   const handleSendStars = async () => {
+    if (sendingRef.current) return;
     if (selectedAmount > balance) {
       setShowBuySection(true);
       return;
     }
-
+    if (!requestRef.current || requestRef.current.amount !== selectedAmount) {
+      requestRef.current = { id: crypto.randomUUID(), amount: selectedAmount };
+    }
+    sendingRef.current = true;
     setSending(true);
     try {
-      // Deduct from sender
-      await supabase
-        .from('star_balances')
-        .update({ 
-          balance: balance - selectedAmount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', currentUserId);
-
-      // Add to creator (upsert)
-      const { data: creatorBalance } = await supabase
-        .from('star_balances')
-        .select('*')
-        .eq('user_id', creatorId)
-        .maybeSingle();
-
-      if (creatorBalance) {
-        await supabase
-          .from('star_balances')
-          .update({
-            balance: (creatorBalance as any).balance + selectedAmount,
-            total_earned: (creatorBalance as any).total_earned + selectedAmount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', creatorId);
-      } else {
-        await supabase
-          .from('star_balances')
-          .insert({ user_id: creatorId, balance: selectedAmount, total_earned: selectedAmount, total_spent: 0 });
-      }
-
-      // Update creator monetization
-      const { data: monet } = await supabase
-        .from('creator_monetization')
-        .select('*')
-        .eq('user_id', creatorId)
-        .maybeSingle();
-
-      if (monet) {
-        await supabase
-          .from('creator_monetization')
-          .update({
-            total_stars_earned: (monet as any).total_stars_earned + selectedAmount,
-            pending_balance: (monet as any).pending_balance + selectedAmount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', creatorId);
-      } else {
-        await supabase
-          .from('creator_monetization')
-          .insert({ user_id: creatorId, total_stars_earned: selectedAmount, pending_balance: selectedAmount });
-      }
-
-      // Record gift transaction
-      await supabase.from('star_transactions').insert({
-        from_user_id: currentUserId,
-        to_user_id: creatorId,
-        video_id: videoId,
-        amount: selectedAmount,
-        type: 'gift'
+      const { data, error } = await supabase.rpc('send_stars', {
+        _creator_id: creatorId,
+        _video_id: videoId,
+        _amount: selectedAmount,
+        _request_id: requestRef.current.id,
       });
-
-      setBalance(prev => prev - selectedAmount);
+      if (error) throw error;
+      setBalance(data);
+      requestRef.current = null;
       setGiftAnimationAmount(selectedAmount);
       setShowGiftAnimation(true);
       onOpenChange(false);
-    } catch {
-      toast.error('Failed to send stars');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send stars. Your request can be retried.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -227,17 +139,18 @@ const SendStarsDialog = ({ open, onOpenChange, creatorId, creatorUsername, video
                 </Button>
 
                 <button onClick={() => setShowBuySection(true)} className="w-full text-xs text-primary hover:underline">
-                  Need more stars? Buy here
+                  Star purchase availability
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm font-medium">Buy Star Packs</p>
+                <p className="text-sm font-medium">Star purchases are not available yet.</p>
+                <p className="text-xs text-muted-foreground">Existing stars can be gifted. Purchases will become available after payment verification is connected.</p>
                 <div className="space-y-2">
                   {starPacks.map(pack => (
                     <button
                       key={pack.id}
-                      onClick={() => handleBuyStars(pack.id, pack.stars_amount)}
+                      disabled
                       className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 transition-all"
                     >
                       <div className="flex items-center gap-2">

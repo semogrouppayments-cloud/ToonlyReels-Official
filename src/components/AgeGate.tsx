@@ -35,7 +35,7 @@ const AgeGate = ({ onVerified }: AgeGateProps) => {
           </div>
           <CardTitle className="text-2xl font-black flex items-center justify-center gap-2">
             <Shield className="h-6 w-6 text-primary" />
-            Parental Verification
+            Parent / Guardian Acknowledgement
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-2">
             ToonlyReels is designed for children ages 4-15
@@ -47,7 +47,7 @@ const AgeGate = ({ onVerified }: AgeGateProps) => {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-fun-yellow shrink-0 mt-0.5" />
               <div className="text-xs text-foreground/80">
-                <p className="font-semibold mb-1">COPPA Compliance Notice</p>
+                <p className="font-semibold mb-1">Parent / Guardian Notice</p>
                 <p>
                   In accordance with the Children's Online Privacy Protection Act (COPPA), 
                   we require parental consent before children under 13 can use ToonlyReels.
@@ -63,8 +63,8 @@ const AgeGate = ({ onVerified }: AgeGateProps) => {
               <span className="font-bold text-sm">Designed for Families</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              This app is part of the Google Play "Designed for Families" program 
-              and meets all requirements for child safety.
+              A parent or guardian should supervise use of this app.
+              This acknowledgement does not verify parental identity.
             </p>
           </div>
 
