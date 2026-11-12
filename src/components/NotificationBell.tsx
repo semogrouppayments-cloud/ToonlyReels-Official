@@ -1,6 +1,5 @@
-import BrandNotificationIcon from '@/components/BrandNotificationIcon';
 import { useState, useEffect, useRef } from 'react';
-import { Play, X, ArrowLeft } from 'lucide-react';
+import { Bell, Play, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -278,7 +277,7 @@ const NotificationBell = () => {
       case 'star_gift':
         return '⭐';
       default:
-        return <BrandNotificationIcon className="h-6 w-6" />;
+        return <Bell className="h-6 w-6" />;
     }
   };
 
@@ -372,7 +371,7 @@ const NotificationBell = () => {
             size="icon"
             className="rounded-full relative"
           >
-            <BrandNotificationIcon className="h-5 w-5" />
+            <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -420,7 +419,7 @@ const NotificationBell = () => {
                 <div className="space-y-2">
                   {notifications.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      <BrandNotificationIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No notifications yet</p>
                     </div>
                   ) : (

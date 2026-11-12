@@ -4,7 +4,7 @@ The app now has an install/download page at `/install`. It is accessible before 
 
 - `Install PWA` invokes the browser's install prompt when available.
 - Safari/iPhone/iPad and browsers without an install prompt show manual installation steps.
-- `Download Android APK` links to `/downloads/ToonlyReels-0.1.6-signed.apk`. A separate development update link retains the certificate used by earlier test installations.
+- `Download Android APK` links to `/downloads/ToonlyReels-0.1.7-signed.apk`. A separate development update link retains the certificate used by earlier test installations.
 - Version, size and SHA-256 are available at `/downloads/release.json`.
 - The full fresh-project SQL is at `/downloads/ToonlyReels-fresh-supabase.sql` in the hosted build.
 
@@ -16,12 +16,12 @@ The included `_redirects` and `_headers` support SPA routing and attachment head
 
 ## Deployment package
 
-Extract `ToonlyReels-0.1.6-PWA.zip` and publish its contents as the website root. `index.html`, `sw.js`, `manifest.webmanifest`, assets, and downloads must remain together. Configure Supabase Auth's Site URL and allowed `/auth` redirect to the final hosted origin. Add that origin to Edge Function `ALLOWED_ORIGINS` where applicable. Apply the SQL and deploy functions per `SUPABASE_SETUP.md`.
+Extract `ToonlyReels-0.1.7-PWA.zip` and publish its contents as the website root. `index.html`, `sw.js`, `manifest.webmanifest`, assets, and downloads must remain together. Configure Supabase Auth's Site URL and allowed `/auth` redirect to the final hosted origin. Add that origin to Edge Function `ALLOWED_ORIGINS` where applicable. Apply the SQL and deploy functions per `SUPABASE_SETUP.md`.
 
 A new Sites hosting registration was attempted, then retried with the owner's explicit approval. Registration returned an internal error without a usable project ID, so no new Site ID, published URL or live deployment is claimed. There was no change to the owner's existing hosted sites.
 
 TypeScript/build, static artifact and phone/tablet-sized Chromium playback checks pass. A real browser installation prompt and physical device install/upgrade were not verified. Native OneSignal delivery is Android-only in this release; PWA in-app realtime alerts remain available, but PWA background Web Push was not added.
 
-The primary downloadable APK is release-signed version 0.1.6 / code 7. The separately labelled development update APK is not a Play Store artifact. The signed AAB is supplied separately for Play Console internal testing.
+The primary downloadable APK is release-signed version 0.1.7 / code 8. The separately labelled development update APK is not a Play Store artifact. The signed AAB is supplied separately for Play Console internal testing.
 
 For a manual hosting fallback, extract the deployment ZIP and drag its folder (the one containing `index.html`) into Netlify Drop at https://app.netlify.com/drop. This is a user-operated alternative; no Netlify deployment or URL was created during this task.

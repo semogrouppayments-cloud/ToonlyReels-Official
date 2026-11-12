@@ -1,5 +1,4 @@
-import BrandNotificationIcon from '@/components/BrandNotificationIcon';
-import { Film, Search, Upload, User, Settings } from 'lucide-react';
+import { Bell, Film, Search, Upload, User, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -153,7 +152,7 @@ const DesktopSidebar = () => {
     { path: '/feed', icon: Film, label: 'Toonz', badge: 0 },
     { path: '/search', icon: Search, label: 'Explore', badge: 0 },
     ...(isLoaded && isCreative ? [{ path: '/upload', icon: Upload, label: 'Upload', badge: 0 }] : []),
-    { path: '/notifications', icon: BrandNotificationIcon, label: 'Notifications', badge: unreadCount },
+    { path: '/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
     { path: currentUserId ? `/profile/${currentUserId}` : '/profile', icon: User, label: 'Profile', badge: 0 },
     { path: '/settings', icon: Settings, label: 'Settings', badge: 0 },
   ];

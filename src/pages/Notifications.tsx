@@ -1,6 +1,5 @@
-import BrandNotificationIcon from '@/components/BrandNotificationIcon';
 import { useState, useEffect, useRef } from 'react';
-import { Check, ArrowLeft } from 'lucide-react';
+import { Bell, Check, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -151,7 +150,7 @@ const Notifications = () => {
       case 'star_gift':
         return '⭐';
       default:
-        return <BrandNotificationIcon className="h-6 w-6" />;
+        return <Bell className="h-6 w-6" />;
     }
   };
 
@@ -194,7 +193,7 @@ const Notifications = () => {
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
-                  <BrandNotificationIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No notifications yet</p>
                   <p className="text-sm mt-1">When someone interacts with your content, you'll see it here</p>
                 </div>

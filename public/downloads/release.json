@@ -1,29 +1,26 @@
 {
-  "version": "0.1.6",
-  "versionCode": 7,
+  "version": "0.1.7",
+  "versionCode": 8,
   "channel": "signed-release",
-  "file": "ToonlyReels-0.1.6-signed.apk",
-  "bytes": 12060831,
-  "sha256": "756d9c77d60912d92d6c041d5b95f1c0163d60d22d88ed0ca7d99ea3c4a3f39c",
+  "file": "ToonlyReels-0.1.7-signed.apk",
+  "bytes": 13562923,
+  "sha256": "28d012cb00147c6923034ef4b6890a7847427216ed47e54c5cc4f13e24f3996f",
   "minimumAndroid": "7.0",
-  "applicationId": "com.semogroup.toonlyreels",
-  "certificateSha256": "c01540ed1d1e6c6a5999f407ca4a1c77d269c6c0aa3c3449b9f48950c8f59e41",
-  "developmentUpdateFile": "ToonlyReels-0.1.6-debug.apk",
+  "developmentUpdateFile": "ToonlyReels-0.1.7-debug.apk",
   "artifacts": {
-    "ToonlyReels-0.1.6-debug.apk": {
-      "bytes": 14492739,
-      "sha256": "87566a3c2d26cecd46c0c54a767c7ecdbe5339abac3dc024fa009bedd974d6fb"
+    "ToonlyReels-0.1.7-signed.aab": {
+      "bytes": 13221334,
+      "sha256": "35b7e10686cc55722e47905d61b5122e9780377cb10b9c2bf15aa07cdbd2b117"
     },
-    "ToonlyReels-0.1.6-signed.aab": {
-      "bytes": 11747038,
-      "sha256": "816d60ba331ede9822b35ff95003df3b8b6a45d6cacfd46fee461228cd96981f"
+    "ToonlyReels-0.1.7-signed.apk": {
+      "bytes": 13562923,
+      "sha256": "28d012cb00147c6923034ef4b6890a7847427216ed47e54c5cc4f13e24f3996f"
     },
-    "ToonlyReels-0.1.6-signed.apk": {
-      "bytes": 12060831,
-      "sha256": "756d9c77d60912d92d6c041d5b95f1c0163d60d22d88ed0ca7d99ea3c4a3f39c"
+    "ToonlyReels-0.1.7-debug.apk": {
+      "bytes": 16488021,
+      "sha256": "84c624f324cfae83aab119b29fe62d7086afbf841c2fff2ff12f9fce8f390bdf"
     }
   },
-  "nativePushDeliveryTested": false,
   "physicalDeviceTested": false,
-  "iosIncluded": false
+  "nativePushDeliveryTested": false
 }

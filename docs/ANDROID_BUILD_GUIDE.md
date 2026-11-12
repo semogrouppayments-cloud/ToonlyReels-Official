@@ -3,7 +3,7 @@
 This repository packages the existing React/TypeScript application as a native Android application using **Capacitor 8**. It is not a React Native rewrite. The existing phone/tablet layouts remain. Web assets are bundled into the APK; no Lovable preview server is used.
 
 - Application ID: `com.semogroup.toonlyreels` — confirm ownership/name before the first Play Store release; the ID cannot be changed for an existing listing.
-- Version name/code: `0.1.6` / `7` in `android/app/build.gradle`; increment the code for each uploaded release.
+- Version name/code: `0.1.7` / `8` in `android/app/build.gradle`; increment the code for each uploaded release.
 - Minimum Android API: 24 (Android 7). Compile/target API: 36.
 - JDK **21 with javac**, Node **22.12+**, Android SDK platform 36 and build tools 36.0.0.
 - React, Capacitor and AndroidX dependencies are locked in the npm/Gradle files.
@@ -33,7 +33,7 @@ The APK embeds the supplied public Supabase configuration. For an empty project,
 
 ## Release signing and AAB
 
-Keep the upload signing key under your control. A new RSA 4096-bit PKCS12 upload key was generated for 0.1.6 at the owner's request. Its private backup is supplied separately from all public downloads. Retain that key and its passwords for future releases; do not generate another key for each update. Do not commit it, its password, or any Supabase server credentials. Enroll the app in Play App Signing when creating the Play listing.
+Keep the upload signing key under your control. A new RSA 4096-bit PKCS12 upload key was generated for 0.1.7 at the owner's request. Its private backup is supplied separately from all public downloads. Retain that key and its passwords for future releases; do not generate another key for each update. Do not commit it, its password, or any Supabase server credentials. Enroll the app in Play App Signing when creating the Play listing.
 
 Set these environment variables through your local secret store/CI settings:
 
@@ -51,7 +51,7 @@ android/app/build/outputs/bundle/release/app-release.aab
 android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Upload the **signed AAB** to a Play Console internal testing track first. APK/AAB signatures were checked locally; no Play Store upload was performed. The new release certificate differs from earlier development APKs, so the signed release APK cannot update those installations in place. The separate 0.1.6 development update APK retains the earlier debug certificate. After Play App Signing enrollment, Google may use a separate app signing certificate for Play-delivered installs.
+Upload the **signed AAB** to a Play Console internal testing track first. APK/AAB signatures were checked locally; no Play Store upload was performed. The new release certificate differs from earlier development APKs, so the signed release APK cannot update those installations in place. The separate 0.1.7 development update APK retains the earlier debug certificate. After Play App Signing enrollment, Google may use a separate app signing certificate for Play-delivered installs.
 
 ## GitHub Actions
 

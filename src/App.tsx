@@ -1,3 +1,4 @@
+import NotificationPermissionPrompt from './components/NotificationPermissionPrompt';
 import AccountDeletion from './pages/AccountDeletion';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -58,7 +59,7 @@ const AppContent = () => {
         <img 
           src="/toonlyreels-splash-logo.png" 
           alt="ToonlyReels" 
-          className="h-28 w-28 object-contain rounded-2xl"
+          className="h-32 w-32 object-contain rounded-2xl"
         />
       </div>
     );
@@ -95,6 +96,7 @@ const AppContent = () => {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <NotificationPermissionPrompt />
       <ToonlyAI />
     </>
   );

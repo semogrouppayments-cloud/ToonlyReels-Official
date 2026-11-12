@@ -102,6 +102,15 @@ catalog = ROOT / 'ios/App/App/Assets.xcassets/AppIcon.appiconset'
 if catalog.exists():
     output(square(1024), catalog / 'AppIcon-512@2x.png')
 
+# Native launch screens use the shared brand instead of the Capacitor placeholder.
+output(square(512), RES / 'drawable-nodpi/splash_brand.png')
+for path in RES.glob('drawable*/splash.png'):
+    dimensions = Image.open(path).size
+    canvas = Image.new('RGB', dimensions, '#FF6D20')
+    edge = round(min(dimensions) * 0.48)
+    canvas.paste(square(edge), ((dimensions[0]-edge)//2, (dimensions[1]-edge)//2))
+    output(canvas, path)
+
 # Assert the assets that can silently regress after a later icon replacement.
 for name, size in [('pwa-icon-192.png',192),('pwa-icon-512.png',512),('play-store-icon-512.png',512)]:
     image = Image.open(ROOT / 'public' / name)

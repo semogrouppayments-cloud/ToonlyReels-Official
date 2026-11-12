@@ -69,12 +69,25 @@ const controller = createPushController(bridge, async userId => {
 });
 
 let preferenceGeneration = 0;
+// OS permission must remain available even before the owner's identity server is configured.
+export async function requestNativeNotificationPermission() {
+  if (!nativePushAvailable()) return false;
+  await bridge.init({ appId: ONESIGNAL_APP_ID });
+  const state = await bridge.getState();
+  return state.permission || (await bridge.requestPermission()).granted;
+}
+export async function notificationPermissionGranted() {
+  if (!nativePushAvailable()) return true;
+  await bridge.init({ appId: ONESIGNAL_APP_ID });
+  return (await bridge.getState()).permission;
+}
 export async function setDevicePushEnabled(userId: string, enabled: boolean, askPermission = false) {
   if (!nativePushAvailable()) return false;
   preferenceGeneration++;
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user.id !== userId) throw new Error('Sign in again before changing notifications');
   const generation = accountGeneration;
+  if (enabled && askPermission && !await requestNativeNotificationPermission()) return false;
   return controller.apply(userId, enabled, askPermission, () => generation === accountGeneration && (currentUser === null || currentUser === userId));
 }
 

@@ -74,7 +74,7 @@ public class NativePushPlugin extends Plugin {
         });
     }
     @PluginMethod public void requestPermission(PluginCall call) {
-        getActivity().runOnUiThread(() -> OneSignal.getNotifications().requestPermission(true, Continue.with(result -> {
+        getActivity().runOnUiThread(() -> OneSignal.getNotifications().requestPermission(false, Continue.with(result -> {
             JSObject value = new JSObject(); value.put("granted", result.isSuccess() && Boolean.TRUE.equals(result.getData()));
             call.resolve(value);
         })));

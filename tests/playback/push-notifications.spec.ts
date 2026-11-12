@@ -162,8 +162,8 @@ test('does not opt a stale account back in after a permission dialog resolves', 
   expect(result.calls.some(call => call.method === 'enabled' && call.enabled)).toBe(false);
 });
 
-for (const configured of [true, false]) {
-  test(configured ? 'Settings saves native push On then Off without a second permission prompt' : 'Settings keeps push off when secure provider identity is not configured', async ({ page }) => {
+for (const scenario of ['settings-shared', 'notification-prompt']) for (const configured of [true, false]) {
+  test((scenario === 'notification-prompt' ? 'Feed permission prompt: ' : '') + (configured ? 'Settings saves native push On then Off without a second permission prompt' : 'Settings keeps push off when secure provider identity is not configured'), async ({ page }) => {
     const user = { id: '11111111-1111-4111-8111-111111111111', email: 'fixture@example.test', aud: 'authenticated', app_metadata: {}, user_metadata: {} };
     await page.addInitScript(user => {
       localStorage.setItem('sb-vxenlskelqwpghclxbjj-auth-token', JSON.stringify({ access_token: 'fixture-token', refresh_token: 'fixture-refresh', expires_at: Math.floor(Date.now()/1000)+3600, token_type: 'bearer', user }));
@@ -192,7 +192,27 @@ for (const configured of [true, false]) {
       if (path.endsWith('/onesignal-delivery')) return route.fulfill({ status: configured ? 200 : 503, json: configured ? { jwt: 'verified-fixture-jwt', externalId: user.id } : { error: 'Not configured' } });
       return route.fulfill({ json });
     });
-    await page.goto('/tests/playback/harness.html?scenario=settings-shared');
+    await page.goto(`/tests/playback/harness.html?scenario=${scenario}`);
+    if (scenario === 'notification-prompt') {
+      await expect(page.getByRole('dialog')).toBeVisible();
+      expect(await page.evaluate(() => window['nativePushTest'].prompts)).toBe(0);
+      await page.getByRole('button', { name: 'Allow notifications', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window['nativePushTest'].prompts)).toBe(1);
+      if (configured) {
+        await expect(page.getByRole('dialog')).not.toBeVisible();
+        await expect.poll(() => saved.length).toBe(1);
+        expect(saved[0].push_enabled).toBe(true);
+        expect(await page.evaluate(() => window['nativePushTest'])).toMatchObject({ permission: true, optedIn: true, prompts: 1 });
+      } else {
+        await expect(page.getByRole('alert')).toContainText('setup by the app owner');
+        expect(saved).toHaveLength(0);
+        expect(await page.evaluate(() => window['nativePushTest'])).toMatchObject({ permission: true, optedIn: false, prompts: 1 });
+        await page.getByRole('button', { name: 'Not now', exact: true }).click();
+        await expect(page.getByRole('dialog')).not.toBeVisible();
+      }
+      await expect(page.locator('nav').getByRole('button', { name: 'Alerts' }).locator('svg.lucide-bell')).toHaveCount(1);
+      return;
+    }
     await page.getByRole('button', { name: 'Notifications', exact: true }).and(page.locator('button[aria-expanded]')).click();
     await page.getByRole('button', { name: 'Notification Settings', exact: true }).click();
     const toggle = page.getByRole('switch', { name: 'Push notifications', exact: true });
@@ -212,7 +232,7 @@ for (const configured of [true, false]) {
     } else {
       await expect(toggle).not.toBeChecked();
       expect(saved).toHaveLength(0);
-      expect(await page.evaluate(() => window['nativePushTest'])).toMatchObject({ optedIn: false, prompts: 0 });
+      expect(await page.evaluate(() => window['nativePushTest'])).toMatchObject({ optedIn: false, prompts: 1 });
     }
   });
 }

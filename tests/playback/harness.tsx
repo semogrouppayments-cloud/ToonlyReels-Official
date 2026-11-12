@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import VideoPlayer from '../../src/components/VideoPlayer';
 import Feed from '../../src/pages/Feed';
 import Upload from '../../src/pages/Upload';
+import NotificationPermissionPrompt from '../../src/components/NotificationPermissionPrompt';
+import BottomNav from '../../src/components/BottomNav';
 import Settings from '../../src/pages/Settings';
 import { ThemeProvider } from '../../src/contexts/ThemeContext';
 import { TooltipProvider } from '../../src/components/ui/tooltip';
@@ -22,6 +24,7 @@ function Harness() {
     ...(scenario === 'high' ? { high: { url: '/__playback-fixtures/high.mp4' } } : {}),
   };
   Object.assign(window, { setAuditActive: setActive });
+  if (scenario === 'notification-prompt') return <MemoryRouter initialEntries={['/feed']}><ThemeProvider><NotificationPermissionPrompt /><BottomNav /></ThemeProvider></MemoryRouter>;
   if (scenario === 'settings-shared') return <BrowserRouter><ThemeProvider><TooltipProvider><Settings /></TooltipProvider></ThemeProvider></BrowserRouter>;
   if (scenario === 'upload-compression') return <BrowserRouter><ThemeProvider><TooltipProvider><Upload /></TooltipProvider></ThemeProvider></BrowserRouter>;
   if (scenario === 'feed-startup') return <BrowserRouter><ThemeProvider><TooltipProvider><Feed /></TooltipProvider></ThemeProvider></BrowserRouter>;

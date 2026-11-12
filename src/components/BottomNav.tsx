@@ -1,5 +1,4 @@
-import BrandNotificationIcon from '@/components/BrandNotificationIcon';
-import { Film, Search, Upload, User } from 'lucide-react';
+import { Bell, Film, Search, Upload, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -148,7 +147,7 @@ const BottomNav = () => {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <BrandNotificationIcon className="h-5 w-5" />
+          <Bell className="h-5 w-5" />
           <span className="text-[10px] font-semibold">Alerts</span>
         </button>
 
