@@ -33,7 +33,7 @@ The APK embeds the supplied public Supabase configuration. For an empty project,
 
 ## Release signing and AAB
 
-Keep the upload signing key under your control. A new RSA 4096-bit PKCS12 upload key was generated for 0.1.8 at the owner's request. Its private backup is supplied separately from all public downloads. Retain that key and its passwords for future releases; do not generate another key for each update. Do not commit it, its password, or any Supabase server credentials. Enroll the app in Play App Signing when creating the Play listing.
+Keep the upload signing key under your control. The RSA 4096-bit PKCS12 upload key generated for 0.1.6 at the owner's request is retained for this release. Its private backup is supplied separately from all public downloads. Retain that key and its passwords for future releases; do not generate another key for each update. Do not commit it, its password, or any Supabase server credentials. Enroll the app in Play App Signing when creating the Play listing.
 
 Set these environment variables through your local secret store/CI settings:
 
