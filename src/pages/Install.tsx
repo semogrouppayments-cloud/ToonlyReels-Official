@@ -55,12 +55,12 @@ const Install = () => {
       </section>
       {!native && <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="text-lg font-semibold">Android APK</h2>
-        <p className="text-sm text-muted-foreground">Version 0.1.7 · Android 7 or newer</p>
+        <p className="text-sm text-muted-foreground">Version 0.1.8 · Android 7 or newer</p>
         <Button asChild size="lg" className="w-full gap-2">
-          <a href="/downloads/ToonlyReels-0.1.7-signed.apk" download="ToonlyReels-0.1.7-signed.apk"><Download className="h-5 w-5" /> Download Android APK</a>
+          <a href="/downloads/ToonlyReels-0.1.8-signed.apk" download="ToonlyReels-0.1.8-signed.apk"><Download className="h-5 w-5" /> Download Android APK</a>
         </Button>
         <p className="text-xs text-muted-foreground">Signed Android release build. Android may ask you to allow installation from your browser. APK files install on Android devices.</p>
-        <p className="text-xs text-muted-foreground">Updating an older development installation? <a className="text-primary underline" href="/downloads/ToonlyReels-0.1.7-debug.apk" download>Download the development update APK</a> to keep its existing signing certificate.</p>
+        <p className="text-xs text-muted-foreground">Updating an older development installation? <a className="text-primary underline" href="/downloads/ToonlyReels-0.1.8-debug.apk" download>Download the development update APK</a> to keep its existing signing certificate.</p>
         <a href="/downloads/release.json" className="text-xs text-primary underline">Version and SHA-256 checksum</a>
       </section>}
       <Button asChild variant="outline" className="w-full gap-2"><Link to="/"><Monitor className="h-4 w-4" /> Open ToonlyReels <ArrowRight className="h-4 w-4" /></Link></Button>

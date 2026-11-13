@@ -1353,7 +1353,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
             controls={false}
             poster="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
             src={undefined}
-            className={`w-full h-full ${aboveBottomNav && isMobile ? "object-cover" : "object-contain"}`}
+            className="w-full h-full object-contain"
             loop={isLooping}
             muted={isMuted}
             playsInline

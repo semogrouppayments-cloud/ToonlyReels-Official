@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Play, Sparkles, Eye, Loader2 } from 'lucide-react';
+import { Sparkles, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import SaveLoginDialog from '@/components/SaveLoginDialog';
@@ -230,9 +230,8 @@ const Auth = () => {
       </div>
       <Card className="w-full max-w-md shadow-elevated animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
         <CardHeader className="text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent mx-auto">
-            <Play className="h-8 w-8 text-primary-foreground fill-primary-foreground" />
-          </div>
+          <img src="/pwa-icon-192.png" alt="ToonlyReels logo" width="80" height="80"
+            className="mb-4 h-20 w-20 rounded-2xl object-contain shadow-md mx-auto" />
           <CardTitle className="text-3xl font-black">
             {isSignUp ? 'Join ToonlyReels!' : 'Welcome Back!'}
           </CardTitle>

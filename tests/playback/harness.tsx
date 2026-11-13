@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import VideoPlayer from '../../src/components/VideoPlayer';
+import Auth from '../../src/pages/Auth';
 import Feed from '../../src/pages/Feed';
 import Upload from '../../src/pages/Upload';
 import NotificationPermissionPrompt from '../../src/components/NotificationPermissionPrompt';
@@ -25,6 +26,7 @@ function Harness() {
   };
   Object.assign(window, { setAuditActive: setActive });
   if (scenario === 'notification-prompt') return <MemoryRouter initialEntries={['/feed']}><ThemeProvider><NotificationPermissionPrompt /><BottomNav /></ThemeProvider></MemoryRouter>;
+  if (scenario === 'auth-brand') return <BrowserRouter><ThemeProvider><Auth /></ThemeProvider></BrowserRouter>;
   if (scenario === 'settings-shared') return <BrowserRouter><ThemeProvider><TooltipProvider><Settings /></TooltipProvider></ThemeProvider></BrowserRouter>;
   if (scenario === 'upload-compression') return <BrowserRouter><ThemeProvider><TooltipProvider><Upload /></TooltipProvider></ThemeProvider></BrowserRouter>;
   if (scenario === 'feed-startup') return <BrowserRouter><ThemeProvider><TooltipProvider><Feed /></TooltipProvider></ThemeProvider></BrowserRouter>;

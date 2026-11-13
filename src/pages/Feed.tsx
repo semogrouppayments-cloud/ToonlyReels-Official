@@ -348,7 +348,7 @@ const Feed = () => {
 
   if (isLoading) {
     return (
-      <ResponsiveLayout>
+      <ResponsiveLayout contentClassName="reel-page">
         <div className="reel-viewport w-full overflow-hidden bg-black">
           <VideoSkeleton />
         </div>
@@ -358,7 +358,7 @@ const Feed = () => {
 
   if (videos.length === 0 && !isLoading) {
     return (
-      <ResponsiveLayout>
+      <ResponsiveLayout contentClassName="reel-page">
         <div className="reel-viewport bg-black flex flex-col">
           <div className="flex-1 flex items-center justify-center pb-24">
             <div className="text-center">
@@ -376,7 +376,7 @@ const Feed = () => {
   }
 
   return (
-    <ResponsiveLayout>
+    <ResponsiveLayout contentClassName="reel-page">
       <div 
         ref={containerRef}
         className="reel-viewport w-full overflow-y-scroll bg-black scrollbar-hide"

@@ -5,9 +5,10 @@ import BottomNav from './BottomNav';
 interface ResponsiveLayoutProps {
   children: ReactNode;
   hideNav?: boolean;
+  contentClassName?: string;
 }
 
-const ResponsiveLayout = ({ children, hideNav = false }: ResponsiveLayoutProps) => {
+const ResponsiveLayout = ({ children, hideNav = false, contentClassName = '' }: ResponsiveLayoutProps) => {
   if (hideNav) {
     return <>{children}</>;
   }
@@ -18,7 +19,7 @@ const ResponsiveLayout = ({ children, hideNav = false }: ResponsiveLayoutProps) 
       <DesktopSidebar />
       
       {/* Main content - shifted right on desktop */}
-      <div className="md:ml-56 lg:ml-64">
+      <div className={`md:ml-56 lg:ml-64 ${contentClassName}`}>
         {children}
       </div>
       

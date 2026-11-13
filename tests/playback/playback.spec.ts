@@ -187,7 +187,7 @@ test(`starts Home playback for ${accountType} without content filters or unrelat
     if (url.pathname.endsWith('/user')) json = user;
     if (url.pathname.endsWith('/content_settings')) throw new Error('Shared feed must not request content filters');
     if (url.pathname.endsWith('/videos')) {
-      json = [0, 1].map(index => ({ id: `22222222-2222-4222-8222-22222222222${index}`, video_url: `/__playback-fixtures/low.mp4?reel=${index}`, title: 'Startup test', description: '', creator_id: '33333333-3333-4333-8333-333333333333', likes_count: 0, views_count: 0, tags: [], video_variants: {}, profiles: { username: 'fixture', avatar_url: '', is_verified: false } }));
+      json = [0, 1].map(index => ({ id: `22222222-2222-4222-8222-22222222222${index}`, video_url: `/__playback-fixtures/${index ? 'landscape' : 'low'}.mp4?reel=${index}`, title: 'Startup test', description: '', creator_id: '33333333-3333-4333-8333-333333333333', likes_count: 0, views_count: 0, tags: [], video_variants: {}, profiles: { username: 'fixture', avatar_url: '', is_verified: false } }));
       if (url.searchParams.get('select') === 'likes_count') json = { likes_count: 0 };
     }
     if (url.pathname.endsWith('/parental_controls')) json = { screen_time_enabled: false, bedtime_enabled: false, school_hours_enabled: false };
@@ -201,23 +201,30 @@ test(`starts Home playback for ${accountType} without content filters or unrelat
     await expect(page.locator('video').first()).toHaveJSProperty('muted', false);
     expect(requests.some(request => request.path.endsWith('/content_settings'))).toBe(false);
     const bounds = await page.locator('video').first().boundingBox();
-    expect(bounds.y).toBeLessThanOrEqual(1);
+    expect(bounds.y).toBeCloseTo(12, 0);
+    expect(await page.locator('.reel-page').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(0, 0, 0)');
+    expect(await page.locator('video').first().evaluate(element => getComputedStyle(element).objectFit)).toBe('contain');
     const brand = page.getByTestId('reel-brand').first();
     const bubble = await brand.boundingBox();
-    expect(bubble.y).toBeGreaterThanOrEqual(10);
-    expect(bubble.y).toBeLessThan(20);
+    expect(bubble.y).toBeGreaterThanOrEqual(22);
+    expect(bubble.y).toBeLessThan(32);
     expect(await brand.evaluate(element => getComputedStyle(element).borderRadius)).toBe('9999px');
     if (page.viewportSize().width < 768) {
       const nav = await page.locator('nav').last().boundingBox();
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(nav.y - 20);
-      expect(await page.locator('video').first().evaluate(element => getComputedStyle(element).objectFit)).toBe('cover');
+      expect(await page.locator('video').first().evaluate(element => getComputedStyle(element).objectFit)).toBe('contain');
     }
+    await page.screenshot({ path: testInfo.outputPath('feed-portrait.png') });
     const feed = page.locator('.reel-viewport');
     await feed.evaluate(element => { element.scrollTop = element.clientHeight; });
     await expect.poll(() => page.locator('video').nth(1).evaluate(video => !video.paused && !video.muted && video.currentTime > 0), { timeout: 6000 }).toBe(true);
     await expect(page.locator('video').first()).toHaveJSProperty('paused', true);
     const nextBounds = await page.locator('video').nth(1).boundingBox();
-    expect(Math.abs(nextBounds.y)).toBeLessThan(2);
+    expect(nextBounds.y).toBeCloseTo(12, 0);
+    await expect(page.locator('video').nth(1)).toHaveJSProperty('videoWidth', 640);
+    await expect(page.locator('video').nth(1)).toHaveJSProperty('videoHeight', 360);
+    expect(await page.locator('video').nth(1).evaluate(element => getComputedStyle(element).objectFit)).toBe('contain');
+    await page.screenshot({ path: testInfo.outputPath('feed-landscape.png') });
 
   } finally {
     release();

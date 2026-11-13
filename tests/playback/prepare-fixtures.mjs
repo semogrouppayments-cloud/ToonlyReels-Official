@@ -22,3 +22,6 @@ for (const [name, scale, crf] of [['low', '360:640', '30'], ['medium', '480:854'
 
 // Valid synthetic MP4 with trailing padding exercises the native compression size gate.
 if (!existsSync(directory + "upload-input.mp4")) writeFileSync(directory + "upload-input.mp4", Buffer.concat([readFileSync(original), Buffer.alloc(9 * 1024 * 1024)]));
+
+const landscape = directory + 'landscape.mp4';
+if (!existsSync(landscape)) ffmpeg(['-i', original, '-vf', 'scale=640:360,setsar=1', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30', '-c:a', 'aac', '-movflags', '+faststart', landscape]);
