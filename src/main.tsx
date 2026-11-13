@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { initializeNativePush } from './lib/pushNotifications';
+import { initializeNativeAuth } from './lib/native';
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
@@ -21,12 +24,12 @@ const clearHeavyRuntimeCaches = async () => {
   const cacheNames = await caches.keys();
   await Promise.all(
     cacheNames
-      .filter((name) => name.includes('video-cache') || name.includes('supabase-cache') || name.includes('runtime'))
+      .filter((name) => name.includes('video-cache') || name.includes('supabase-cache') || name.includes('runtime') || name === 'app-data-cache')
       .map((name) => caches.delete(name))
   );
 };
 
-if (isPreviewHost || isInIframe) {
+if (isPreviewHost || isInIframe || Capacitor.isNativePlatform()) {
   navigator.serviceWorker?.getRegistrations().then((registrations) => {
     registrations.forEach((registration) => registration.unregister());
   });
@@ -36,7 +39,11 @@ clearHeavyRuntimeCaches().catch(console.error);
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-if (!isPreviewHost && !isInIframe) {
+initializeNativePush().catch(() => console.warn("Push initialization is not ready"));
+
+initializeNativeAuth().catch(() => console.error("Native sign-in initialization failed"));
+
+if (!isPreviewHost && !isInIframe && !Capacitor.isNativePlatform()) {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {

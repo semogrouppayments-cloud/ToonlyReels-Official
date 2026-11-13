@@ -1,0 +1,15 @@
+/sw.js
+  Cache-Control: no-cache
+/downloads/*
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+/downloads/ToonlyReels-0.1.8-debug.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment; filename="ToonlyReels-0.1.8-debug.apk"
+/downloads/ToonlyReels-fresh-supabase.sql
+  Content-Type: text/plain; charset=utf-8
+  Content-Disposition: attachment; filename="ToonlyReels-fresh-supabase.sql"
+
+/downloads/ToonlyReels-0.1.8-signed.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment; filename="ToonlyReels-0.1.8-signed.apk"

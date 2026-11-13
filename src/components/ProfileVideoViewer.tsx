@@ -49,7 +49,7 @@ const ProfileVideoViewer = ({
   // Scroll to initial video on mount
   useEffect(() => {
     if (containerRef.current && !hasScrolledRef.current) {
-      const scrollPosition = initialIndex * window.innerHeight;
+      const scrollPosition = initialIndex * containerRef.current.clientHeight;
       containerRef.current.scrollTo({ top: scrollPosition, behavior: 'auto' });
       hasScrolledRef.current = true;
     }
@@ -59,7 +59,7 @@ const ProfileVideoViewer = ({
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const scrollTop = containerRef.current.scrollTop;
-    const height = window.innerHeight;
+    const height = containerRef.current.clientHeight;
     const newIndex = Math.round(scrollTop / height);
     
     if (newIndex !== activeIndex && newIndex >= 0 && newIndex < videos.length) {
@@ -79,7 +79,7 @@ const ProfileVideoViewer = ({
     <div className="fixed inset-0 z-50 bg-background">
       <div 
         ref={containerRef}
-        className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+        className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
         style={{ 
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
@@ -104,7 +104,7 @@ const ProfileVideoViewer = ({
           return (
             <div 
               key={video.id} 
-              className="h-screen snap-start relative"
+              className="h-full snap-start relative"
               style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
             >
               <VideoPlayer

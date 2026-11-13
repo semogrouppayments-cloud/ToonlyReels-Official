@@ -48,13 +48,13 @@ const TermsOfService = () => {
             <section className="space-y-3">
               <h2 className="text-base font-semibold text-foreground">2. Designed for Families</h2>
               <p>
-                ToonlyReels participates in the Google Play "Designed for Families" program and 
-                complies with all applicable requirements, including:
+                The intended family experience includes the following goals.
+                Store review and parental-consent requirements must be completed before a public child-directed launch:
               </p>
               <ul className="list-disc list-inside space-y-1 pl-2">
                 <li>Content appropriate for children</li>
                 <li>No behavioral advertising targeting children</li>
-                <li>COPPA (Children's Online Privacy Protection Act) compliance</li>
+                <li>Verified parental consent appropriate to the intended audience</li>
                 <li>Age-appropriate interactions and safety features</li>
                 <li>Parental controls and content filtering</li>
               </ul>

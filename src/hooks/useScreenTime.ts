@@ -103,16 +103,13 @@ export const useScreenTime = (userId: string | null) => {
       if (controls.screen_time_enabled === true && controls.screen_time_limit) {
         setTimeLimit(controls.screen_time_limit);
         
-        const usageKey = getUsageKey();
-        if (usageKey) {
-          const storedUsage = parseInt(localStorage.getItem(usageKey) || '0', 10);
-          setTimeUsed(storedUsage);
-          
-          if (storedUsage >= controls.screen_time_limit) {
-            setIsLocked(true);
-            setLockReason('screen_time');
-            return;
-          }
+        const { data: storedUsage, error } = await supabase.rpc('get_screen_time_usage');
+        if (error) throw error;
+        setTimeUsed(storedUsage);
+        if (storedUsage >= controls.screen_time_limit) {
+          setIsLocked(true);
+          setLockReason('screen_time');
+          return;
         }
       }
 
@@ -124,20 +121,16 @@ export const useScreenTime = (userId: string | null) => {
   }, [userId, controls, controlsLoaded, fetchControls, getUsageKey]);
 
   // Track time spent
-  const trackTime = useCallback(() => {
-    const usageKey = getUsageKey();
-    if (!usageKey || isLocked) return;
-
-    const currentUsage = parseInt(localStorage.getItem(usageKey) || '0', 10);
-    const newUsage = currentUsage + 1;
-    localStorage.setItem(usageKey, newUsage.toString());
-    setTimeUsed(newUsage);
-
-    if (newUsage >= timeLimit) {
+  const trackTime = useCallback(async () => {
+    if (!userId || isLocked || document.visibilityState !== 'visible') return;
+    const { data: used, error } = await supabase.rpc('record_screen_time');
+    if (error) { console.error('Screen-time tracking failed'); return; }
+    setTimeUsed(used);
+    if (controls?.screen_time_enabled === true && used >= timeLimit) {
       setIsLocked(true);
       setLockReason('screen_time');
     }
-  }, [getUsageKey, isLocked, timeLimit]);
+  }, [userId, isLocked, controls, timeLimit]);
 
   const unlock = useCallback(() => {
     setIsLocked(false);

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export default function ScreenTimeLock({
   timeLimit,
   onUnlock,
 }: ScreenTimeLockProps) {
+  const navigate = useNavigate();
   const [pin, setPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
 
@@ -31,10 +33,13 @@ export default function ScreenTimeLock({
       });
 
       if (isValid) {
-        const today = new Date().toDateString();
-        const usageKey = `screen_time_${userId}_${today}`;
-        const currentUsage = parseInt(localStorage.getItem(usageKey) || '0', 10);
-        localStorage.setItem(usageKey, Math.max(0, currentUsage - 15).toString());
+        if (lockReason !== 'screen_time') {
+          navigate('/settings');
+          toast.success('Parent access verified. Update the schedule in Settings.');
+          return;
+        }
+        const { error } = await supabase.rpc('grant_screen_time_extension');
+        if (error) throw error;
         onUnlock();
         toast.success('Unlocked: +15 minutes');
       } else {

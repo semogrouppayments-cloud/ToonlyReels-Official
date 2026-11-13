@@ -1,3 +1,4 @@
+import { authorize } from '../_shared/authorize.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -20,6 +21,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denied = await authorize(req, 'user', 'transcription');
+  if (denied) return denied;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -73,7 +77,7 @@ Deno.serve(async (req) => {
     // Verify the user owns this video
     const { data: video, error: videoError } = await supabase
       .from('videos')
-      .select('creator_id, transcription_status')
+      .select('creator_id, transcription_status, video_url')
       .eq('id', videoId)
       .single();
 
@@ -100,7 +104,7 @@ Deno.serve(async (req) => {
     console.log(`Starting transcription for video ${videoId}`);
 
     // Extract storage path from URL
-    const storagePath = extractStoragePath(videoUrl);
+    const storagePath = extractStoragePath(video.video_url);
     if (!storagePath) {
       await supabase
         .from('videos')

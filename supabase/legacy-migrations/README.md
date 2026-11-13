@@ -1,0 +1,1 @@
+Archived history from the original Lovable project. Do not apply these files to the new Supabase project. The sole fresh-project baseline is ../migrations/20261111000000_initial_schema.sql. This archive preserves provenance; the baseline is not an upgrade for an existing database.

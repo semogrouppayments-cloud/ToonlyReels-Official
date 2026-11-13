@@ -1,3 +1,4 @@
+import { nativePushAvailable, setDevicePushEnabled } from '@/lib/pushNotifications';
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Moon, Sun, RefreshCw, ChevronDown, Trash2, UserX, Eye, EyeOff, Mail } from "lucide-react";
 import { usePWAUpdate } from "@/hooks/usePWAUpdate";
@@ -34,10 +35,6 @@ const Settings = () => {
   const [selectedAvatar, setSelectedAvatar] = useState("🦊");
   const [ageRange, setAgeRange] = useState("7-9");
   const [profilePin, setProfilePin] = useState("");
-  const [cartoonOnlyMode, setCartoonOnlyMode] = useState(true);
-  const [contentCategories, setContentCategories] = useState<string[]>(["comedy", "adventure", "learning", "music"]);
-  const [commentsVisibility, setCommentsVisibility] = useState("emoji_only");
-  const [interactionLimits, setInteractionLimits] = useState(true);
   const [screenTimeLimit, setScreenTimeLimit] = useState(60);
   const [screenTimeEnabled, setScreenTimeEnabled] = useState(true);
   const [schoolHoursLock, setSchoolHoursLock] = useState(false);
@@ -60,6 +57,7 @@ const Settings = () => {
   const [notifReplies, setNotifReplies] = useState(true);
   const [notifNewVideos, setNotifNewVideos] = useState(true);
   const [notifPush, setNotifPush] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
   const [notifSound, setNotifSound] = useState(true);
   const [isCreative, setIsCreative] = useState(false);
   const [userType, setUserType] = useState<string>('viewer');
@@ -123,14 +121,6 @@ const Settings = () => {
       const { data: profileSecrets } = await supabase.from('profile_secrets').select('profile_pin').eq('user_id', user.id).single();
       if (profileSecrets) {
         setProfilePin(profileSecrets.profile_pin || "");
-      }
-      
-      const { data: contentSettings } = await supabase.from('content_settings').select('*').eq('user_id', user.id).single();
-      if (contentSettings) {
-        setCartoonOnlyMode(contentSettings.cartoon_only_mode);
-        setContentCategories(contentSettings.content_categories || []);
-        setCommentsVisibility(contentSettings.comments_visibility);
-        setInteractionLimits(contentSettings.interaction_limits);
       }
       
       const { data: parentalControls } = await supabase.from('parental_controls').select('*').eq('user_id', user.id).single();
@@ -229,16 +219,6 @@ const Settings = () => {
     }
   };
 
-  const saveContentSettings = async () => {
-    if (!userId) return;
-    try {
-      await supabase.from('content_settings').upsert({ user_id: userId, cartoon_only_mode: cartoonOnlyMode, content_categories: contentCategories, comments_visibility: commentsVisibility, interaction_limits: interactionLimits });
-      toast.success('Content settings saved');
-    } catch (error) {
-      toast.error('Failed to save');
-    }
-  };
-
   const saveParentalControls = async () => {
     if (!userId) return;
     try {
@@ -302,27 +282,26 @@ const Settings = () => {
   };
 
   const saveNotificationSettings = async () => {
-    if (!userId) return;
+    if (!userId || notificationSaving) return;
+    setNotificationSaving(true);
+    let enabled = notifPush;
     try {
-      await supabase.from('notification_preferences').upsert({ 
-        user_id: userId, 
-        likes_enabled: notifLikes,
-        comments_enabled: notifComments,
-        follows_enabled: notifFollows,
-        replies_enabled: notifReplies,
-        new_videos_enabled: notifNewVideos,
-        push_enabled: notifPush,
-        sound_enabled: notifSound
-      });
+      enabled = await setDevicePushEnabled(userId, notifPush, notifPush);
+      const { error } = await supabase.from('notification_preferences').upsert({
+        user_id: userId,
+        likes_enabled: notifLikes, comments_enabled: notifComments,
+        follows_enabled: notifFollows, replies_enabled: notifReplies,
+        new_videos_enabled: notifNewVideos, push_enabled: enabled, sound_enabled: notifSound,
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setNotifPush(enabled);
       toast.success('Notification settings saved');
-      
-      // Request push notification permission if enabled
-      if (notifPush && 'Notification' in window && Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
+      if (notifPush && !enabled) toast.info('Allow notifications in your phone settings to receive activity alerts.');
     } catch (error) {
-      toast.error('Failed to save');
-    }
+      if (enabled) await setDevicePushEnabled(userId, false).catch(() => {});
+      setNotifPush(false);
+      toast.error(error instanceof Error ? error.message : 'Could not save notification settings');
+    } finally { setNotificationSaving(false); }
   };
 
   const handleDeleteAccount = async () => {
@@ -401,45 +380,9 @@ const Settings = () => {
     
     try {
       const newType = pendingTypeChange as 'viewer' | 'creative';
-      const oldType = userType;
-      
-      // Record the change (this can only happen once due to UNIQUE constraint)
-      const { error: changeError } = await supabase
-        .from('user_type_changes')
-        .insert({
-          user_id: userId,
-          original_type: oldType,
-          new_type: newType
-        });
-      
-      if (changeError) {
-        if (changeError.code === '23505') { // Unique violation
-          toast.error('You have already used your one-time account type change');
-        } else {
-          throw changeError;
-        }
-        return;
-      }
-      
-      // Update profile
-      await supabase
-        .from('profiles')
-        .update({ user_type: newType })
-        .eq('id', userId);
-      
-      // Update or remove user role
-      if (newType === 'creative') {
-        await supabase
-          .from('user_roles')
-          .upsert({ user_id: userId, role: 'creative' }, { onConflict: 'user_id,role' });
-      } else {
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role', 'creative');
-      }
-      
+      const { error } = await supabase.rpc('change_user_type', { _new_type: newType });
+      if (error) throw error;
+
       setUserType(newType);
       setIsCreative(newType === 'creative');
       setHasChangedType(true);
@@ -586,33 +529,6 @@ const Settings = () => {
                   ))}
                 </div>
               )}
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Safety & Content */}
-          <Collapsible open={openSections.includes('safety')}>
-            <SectionHeader title="Safety & Content" section="safety" />
-            <CollapsibleContent className="mt-2 bg-card rounded-xl border border-border p-3">
-              <Accordion type="single" collapsible>
-                <AccordionItem value="cartoon">
-                  <AccordionTrigger className="text-xs">Cartoon-Only Mode</AccordionTrigger>
-                  <AccordionContent className="space-y-3">
-                    <div className="flex justify-between"><Label className="text-xs">Enabled</Label><Switch checked={cartoonOnlyMode} onCheckedChange={setCartoonOnlyMode} /></div>
-                    <Button onClick={saveContentSettings} size="sm" className="h-7 text-xs">Save</Button>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="categories">
-                  <AccordionTrigger className="text-xs">Categories</AccordionTrigger>
-                  <AccordionContent className="space-y-3">
-                    {['comedy', 'adventure', 'learning', 'music'].map(cat => (
-                      <div key={cat} className="flex justify-between"><Label className="capitalize text-xs">{cat}</Label>
-                        <Switch checked={contentCategories.includes(cat)} onCheckedChange={(c) => c ? setContentCategories([...contentCategories, cat]) : setContentCategories(contentCategories.filter(x => x !== cat))} />
-                      </div>
-                    ))}
-                    <Button onClick={saveContentSettings} size="sm" className="h-7 text-xs">Save</Button>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
             </CollapsibleContent>
           </Collapsible>
 
@@ -867,20 +783,24 @@ const Settings = () => {
                       </div>
                       <Switch checked={notifNewVideos} onCheckedChange={setNotifNewVideos} />
                     </div>
-                    <Button onClick={saveNotificationSettings} size="sm" className="h-7 text-xs">Save</Button>
+                    <Button disabled={notificationSaving} onClick={saveNotificationSettings} size="sm" className="h-7 text-xs">Save</Button>
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="notification-settings">
                   <AccordionTrigger className="text-xs">Notification Settings</AccordionTrigger>
                   <AccordionContent className="space-y-3">
-                    <div className="flex justify-between"><Label className="text-xs">Push Notifications</Label><Switch checked={notifPush} onCheckedChange={setNotifPush} /></div>
+                    <p className="text-xs text-muted-foreground">{nativePushAvailable() ? "Receive activity alerts when the app is open or in the background. Turn this off to stop push notifications." : "Push notifications are available in the Android and iOS apps. You can still read activity in Alerts here."}</p><div className="flex justify-between"><Label className="text-xs">Push Notifications</Label><Switch aria-label="Push notifications" checked={notifPush} onCheckedChange={setNotifPush} disabled={!nativePushAvailable() || notificationSaving} /></div>
                     <div className="flex justify-between"><Label className="text-xs">Sound</Label><Switch checked={notifSound} onCheckedChange={setNotifSound} /></div>
-                    <Button onClick={saveNotificationSettings} size="sm" className="h-7 text-xs">Save</Button>
+                    <Button disabled={notificationSaving} onClick={saveNotificationSettings} size="sm" className="h-7 text-xs">Save</Button>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
             </CollapsibleContent>
           </Collapsible>
+
+          <Button variant="outline" className="w-full" onClick={() => navigate('/install')}>
+            Install app / Android download
+          </Button>
 
           {/* App Updates */}
           <Collapsible open={openSections.includes('updates')}>
@@ -956,13 +876,13 @@ const Settings = () => {
                 <AccordionItem value="what">
                   <AccordionTrigger className="text-xs">What is ToonlyReels?</AccordionTrigger>
                   <AccordionContent>
-                    <p className="text-xs text-muted-foreground">ToonlyReels is a kid-safe cartoon reels platform made by SEMO Group. Kids can watch short animated clips, music toons, fun stories, and educational shorts — all age filtered.</p>
+                    <p className="text-xs text-muted-foreground">ToonlyReels is a short-video platform made by SEMO Group. Viewers and creatives watch the same shared feed of approved reels.</p>
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="cartoon">
-                  <AccordionTrigger className="text-xs">Why only cartoon content?</AccordionTrigger>
+                  <AccordionTrigger className="text-xs">Do viewers and creatives see the same reels?</AccordionTrigger>
                   <AccordionContent>
-                    <p className="text-xs text-muted-foreground">ToonlyReels is designed strictly for kids. We automatically block adult themes, scary content, violence, political content, and anything unsafe.</p>
+                    <p className="text-xs text-muted-foreground">Yes. Both account types browse the same approved reels, without cartoon-only or category selection.</p>
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="report">
@@ -1085,7 +1005,7 @@ const Settings = () => {
                 <AccordionItem value="privacy">
                   <AccordionTrigger className="text-xs">View Privacy Policy</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-xs text-muted-foreground">
-                    <p className="font-semibold">ToonlyReels is COPPA-compliant and designed for child safety.</p>
+                    <p className="font-semibold">A parent or guardian should supervise children using ToonlyReels.</p>
                     
                     <div>
                       <p className="font-semibold text-foreground">1. What information we collect</p>
@@ -1149,7 +1069,7 @@ const Settings = () => {
                     
                     <div>
                       <p className="font-semibold text-foreground">1. Safe Content System</p>
-                      <p>We use AI detection for harmful videos, human moderation, strict cartoon-only rules, and automatic age filtering.</p>
+                      <p>Approved reels appear in the shared feed. You can report content and block accounts from a reel or profile.</p>
                     </div>
 
                     <div>
@@ -1164,7 +1084,7 @@ const Settings = () => {
 
                     <div>
                       <p className="font-semibold text-foreground">4. Messaging Safety</p>
-                      <p>Messaging is disabled by default, optional for older kids, monitored by automated filters, and PIN-protected for parents.</p>
+                      <p>Messaging is not available in this build.</p>
                     </div>
 
                     <div>
@@ -1174,7 +1094,7 @@ const Settings = () => {
 
                     <div>
                       <p className="font-semibold text-foreground">6. Creator Upload Safety</p>
-                      <p>All uploads go through automated filtering and human moderator review with age-range tagging. Creators lose upload access if they violate rules.</p>
+                      <p>Uploads start pending review. Automated filtering and age-range classification are not connected yet.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

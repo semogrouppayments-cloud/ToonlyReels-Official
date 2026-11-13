@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
 
 // Allowed origins for CORS - restrict to specific domains
 const ALLOWED_ORIGINS = [
+  'https://localhost',
+  'capacitor://localhost',
+  ...(Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean),
   'https://lovable.dev',
   'https://www.lovable.dev',
   'http://localhost:5173',
@@ -89,7 +92,7 @@ serve(async (req) => {
 
     // Extract the file path from the video_url
     const videoUrlPath = new URL(video.video_url).pathname;
-    const filePath = videoUrlPath.split('/').slice(-2).join('/');
+    const filePath = decodeURIComponent(videoUrlPath.split('/videos/').slice(1).join('/videos/'));
 
     // Generate signed URL for the video (valid for 1 hour)
     const { data: signedUrlData, error: signedUrlError } = await supabase

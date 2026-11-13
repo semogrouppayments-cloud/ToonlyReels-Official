@@ -156,7 +156,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'ToonlyReels <noreply@toonlyreels.com>',
+          from: Deno.env.get('RESEND_FROM_EMAIL') || 'ToonlyReels <onboarding@resend.dev>',
           to: [verification.business_email],
           subject: emailSubject,
           html: emailBody,

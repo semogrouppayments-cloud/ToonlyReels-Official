@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, Check, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ const Notifications = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const pushHandled = useRef(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -106,6 +107,13 @@ const Notifications = () => {
     }
   };
 
+  useEffect(() => {
+    if (loading || pushHandled.current) return;
+    const id = new URLSearchParams(window.location.search).get('notification');
+    const notification = notifications.find(item => item.id === id);
+    if (notification) { pushHandled.current = true; handleNotificationClick(notification); }
+  }, [loading, notifications]);
+
   const getNotificationText = (notification: Notification) => {
     const username = notification.actor_profile?.username || 'Someone';
     
@@ -142,7 +150,7 @@ const Notifications = () => {
       case 'star_gift':
         return '⭐';
       default:
-        return '🔔';
+        return <Bell className="h-6 w-6" />;
     }
   };
 

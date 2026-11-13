@@ -1,0 +1,26 @@
+{
+  "version": "0.1.8",
+  "versionCode": 9,
+  "channel": "signed-release",
+  "file": "ToonlyReels-0.1.8-signed.apk",
+  "bytes": 13562983,
+  "sha256": "b45fdfe8bdc2e64d6077dd4c3f1a4f6fea4e473067a96658d5f7f5d81ef0be8d",
+  "minimumAndroid": "7.0",
+  "developmentUpdateFile": "ToonlyReels-0.1.8-debug.apk",
+  "artifacts": {
+    "ToonlyReels-0.1.8-debug.apk": {
+      "bytes": 15950052,
+      "sha256": "172d870be2abcbcaadbb890bcc840ddad6b8457e25f99513e77b29c27e3c287e"
+    },
+    "ToonlyReels-0.1.8-signed.apk": {
+      "bytes": 13562983,
+      "sha256": "b45fdfe8bdc2e64d6077dd4c3f1a4f6fea4e473067a96658d5f7f5d81ef0be8d"
+    },
+    "ToonlyReels-0.1.8-signed.aab": {
+      "bytes": 13221385,
+      "sha256": "2eb92511941a2d14ba39d7a1892d7e6eca0defaf4b89e726654dc85047ab9cc4"
+    }
+  },
+  "physicalDeviceTested": false,
+  "nativePushDeliveryTested": false
+}

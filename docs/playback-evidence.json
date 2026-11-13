@@ -1,0 +1,832 @@
+{
+  "scope": "Responsive Chromium with synthetic fixtures; no physical devices tested.",
+  "baseline": [
+    {
+      "project": "phone-sized-chromium",
+      "test": "falls through missing low and medium renditions to the playable original",
+      "status": "failed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "totalFrames": 0,
+        "droppedFrames": 0
+      },
+      "media_errors": 344,
+      "source_loads": 345,
+      "media_event_counts": {
+        "emptied": 345,
+        "loadstart": 345,
+        "error": 344
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "falls through missing low and medium renditions to the playable original",
+      "status": "failed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "totalFrames": 0,
+        "droppedFrames": 0
+      },
+      "media_errors": 798,
+      "source_loads": 799,
+      "media_event_counts": {
+        "emptied": 799,
+        "loadstart": 799,
+        "error": 798
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4"
+      ]
+    }
+  ],
+  "verified": [
+    {
+      "project": "phone-sized-chromium",
+      "test": "auto plays the real low rendition without changing the reel layout",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 4.995399,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 123,
+        "droppedFrames": 1,
+        "played": [
+          {
+            "start": 0,
+            "end": 4.995399
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "auto plays the real low rendition without changing the reel layout",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 5.043754,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 125,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 5.043754
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "falls through missing low and medium renditions to the playable original",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.31128,
+        "paused": false,
+        "readyState": 4,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 36,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.31128
+          }
+        ]
+      },
+      "media_errors": 2,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "error": 2,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "falls through missing low and medium renditions to the playable original",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.27361,
+        "paused": false,
+        "readyState": 4,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 35,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.27361
+          }
+        ]
+      },
+      "media_errors": 2,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "error": 2,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "plays original-only records and resumes after a reel becomes active again",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.172576,
+        "paused": false,
+        "readyState": 4,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 32,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.172576
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 2,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 2,
+        "loadedmetadata": 2,
+        "playing": 2
+      },
+      "source_sequence": [
+        "/__playback-fixtures/original.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "plays original-only records and resumes after a reel becomes active again",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.157978,
+        "paused": false,
+        "readyState": 4,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 32,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.157978
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 2,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 2,
+        "loadedmetadata": 2,
+        "playing": 2
+      },
+      "source_sequence": [
+        "/__playback-fixtures/original.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "documents rendition availability and source selection on touch views",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0.007455,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 4,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 0.007455
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "documents rendition availability and source selection on touch views",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0.010196,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 4,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 0.010196
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "stops after all sources fail instead of cycling indefinitely",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 0,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "totalFrames": 0,
+        "droppedFrames": 0,
+        "played": []
+      },
+      "media_errors": 3,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "error": 3
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "stops after all sources fail instead of cycling indefinitely",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 0,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "totalFrames": 0,
+        "droppedFrames": 0,
+        "played": []
+      },
+      "media_errors": 3,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "error": 3
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/medium.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "records buffering at 1 Mbps on an original-only record",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.359404,
+        "paused": false,
+        "readyState": 3,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 38,
+        "droppedFrames": 7,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.359404
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 2,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 3,
+        "waiting": 2
+      },
+      "source_sequence": [
+        "/__playback-fixtures/original.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "records buffering at 1 Mbps on an original-only record",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/original.mp4",
+        "time": 1.613465,
+        "paused": false,
+        "readyState": 2,
+        "width": 720,
+        "height": 1280,
+        "totalFrames": 39,
+        "droppedFrames": 6,
+        "played": [
+          {
+            "start": 0,
+            "end": 1.613465
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 2,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 3,
+        "waiting": 3
+      },
+      "source_sequence": [
+        "/__playback-fixtures/original.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/original.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "plays the low WebM produced by the existing desktop encoder",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/generated-low.webm",
+        "time": 3.0862,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 77,
+        "droppedFrames": 4,
+        "played": [
+          {
+            "start": 0,
+            "end": 3.0862
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/generated-low.webm",
+        "http://127.0.0.1:8080/__playback-fixtures/generated-low.webm"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "plays the low WebM produced by the existing desktop encoder",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/generated-low.webm",
+        "time": 2.3109,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 57,
+        "droppedFrames": 1,
+        "played": [
+          {
+            "start": 0,
+            "end": 2.3109
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 1,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 1
+      },
+      "source_sequence": [
+        "/__playback-fixtures/generated-low.webm",
+        "http://127.0.0.1:8080/__playback-fixtures/generated-low.webm"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "keeps the existing HD and SD controls working on touch layouts",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0.022305,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 5,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 0.022305
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "loadedmetadata": 3,
+        "playing": 3
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/high.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "keeps the existing HD and SD controls working on touch layouts",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 0.139299,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 7,
+        "droppedFrames": 0,
+        "played": [
+          {
+            "start": 0,
+            "end": 0.139299
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 3,
+      "media_event_counts": {
+        "emptied": 3,
+        "loadstart": 3,
+        "loadedmetadata": 3,
+        "playing": 3
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/high.mp4"
+      ]
+    },
+    {
+      "project": "phone-sized-chromium",
+      "test": "plays the smaller low fixture at the same 1 Mbps limit",
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 1.510418,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 232,
+        "droppedFrames": 2,
+        "played": [
+          {
+            "start": 0,
+            "end": 8.010998
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 2,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 3,
+        "waiting": 2
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    },
+    {
+      "project": "tablet-sized-chromium",
+      "test": "plays the smaller low fixture at the same 1 Mbps limit",
+      "status": "passed",
+      "viewport": {
+        "width": 820,
+        "height": 1180,
+        "touchPoints": 1
+      },
+      "video": {
+        "src": "http://127.0.0.1:8080/__playback-fixtures/low.mp4",
+        "time": 1.556071,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 640,
+        "totalFrames": 233,
+        "droppedFrames": 1,
+        "played": [
+          {
+            "start": 0,
+            "end": 8.010998
+          }
+        ]
+      },
+      "media_errors": 0,
+      "source_loads": 1,
+      "media_event_counts": {
+        "emptied": 2,
+        "loadstart": 1,
+        "loadedmetadata": 1,
+        "playing": 3,
+        "waiting": 2
+      },
+      "source_sequence": [
+        "/__playback-fixtures/low.mp4",
+        "http://127.0.0.1:8080/__playback-fixtures/low.mp4"
+      ]
+    }
+  ],
+  "encoder": {
+    "sourceBytes": 43858096,
+    "elapsedMs": 16488.300000000047,
+    "variants": [
+      {
+        "key": "low",
+        "width": 360,
+        "height": 640,
+        "bitrate": 520000,
+        "mimeType": "video/webm",
+        "size": 385812,
+        "streams": [
+          {
+            "type": "video",
+            "codec": "vp9",
+            "width": 360,
+            "height": 640
+          }
+        ]
+      },
+      {
+        "key": "medium",
+        "width": 480,
+        "height": 854,
+        "bitrate": 900000,
+        "mimeType": "video/webm",
+        "size": 653608,
+        "streams": [
+          {
+            "type": "video",
+            "codec": "vp9",
+            "width": 480,
+            "height": 854
+          }
+        ]
+      }
+    ]
+  },
+  "hosted_metadata": {
+    "content_range": "0-14/15",
+    "sampled_records": 15,
+    "empty_variants": 15,
+    "keys": {
+      "low": 0,
+      "medium": 0,
+      "high": 0,
+      "tiny": 0,
+      "original": 0
+    }
+  },
+  "hosted_header_samples": [
+    {
+      "sample": 1,
+      "status": 200,
+      "bytes": "105641250",
+      "type": "video/mp4",
+      "range_support": "bytes"
+    },
+    {
+      "sample": 2,
+      "status": 200,
+      "bytes": "104912173",
+      "type": "video/mp4",
+      "range_support": "bytes"
+    },
+    {
+      "sample": 3,
+      "status": 200,
+      "bytes": "68695292",
+      "type": "video/mp4",
+      "range_support": "bytes"
+    }
+  ]
+}

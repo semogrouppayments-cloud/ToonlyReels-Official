@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Download, Flag, Trash2, Volume2, VolumeX, Bookmark, BookmarkCheck, Settings, Repeat, Ban, BadgeCheck, Subtitles, Star } from 'lucide-react';
+import { Heart, MessageCircle, Download, Flag, Trash2, Volume2, VolumeX, Bookmark, BookmarkCheck, Settings, Repeat, Ban, BadgeCheck, Subtitles, Star, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import LikeAnimation from '@/components/LikeAnimation';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +61,9 @@ interface VideoPlayerProps {
   isPremium: boolean;
   isActive: boolean;
   onCommentsClick: () => void;
+  warmup?: boolean;
+  onPlaybackStarted?: () => void;
+  aboveBottomNav?: boolean;
   onDelete?: () => void;
   onPositiveAction?: () => void;
 }
@@ -122,7 +125,7 @@ const normalizePlaybackQuality = (value?: string | null): PlaybackQuality => {
   return 'auto';
 };
 
-const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClick, onDelete, onPositiveAction }: VideoPlayerProps) => {
+const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClick, onDelete, onPositiveAction, warmup = false, onPlaybackStarted, aboveBottomNav = false }: VideoPlayerProps) => {
   const navigate = useNavigate();
   const { triggerLikeHaptic, triggerHaptic } = useHapticFeedback();
   const { playLikeSound, playTapSound, playSuccessSound } = useSoundEffects();
@@ -138,8 +141,9 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [likeAnimations, setLikeAnimations] = useState<Array<{ id: number; x: number; y: number }>>([]);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -170,6 +174,8 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
   const lastTapRef = useRef<number>(0);
   const animationIdRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playbackStartedRef = useRef(onPlaybackStarted);
+  playbackStartedRef.current = onPlaybackStarted;
   const progressBarRef = useRef<HTMLDivElement>(null);
   const watchStartTimeRef = useRef<number>(Date.now());
   const analyticsTrackedRef = useRef<boolean>(false);
@@ -180,6 +186,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
   const downloadControllerRef = useRef<WatermarkController | null>(null);
   const subtitleRef = useRef<HTMLDivElement>(null);
   const stallCountRef = useRef<number>(0);
+  const failedSourceUrlsRef = useRef<Set<string>>(new Set());
   const audioPreferenceRef = useRef<'auto' | 'muted' | 'unmuted'>('auto');
   const deferredDataFetchTimerRef = useRef<number | null>(null);
   const stallRecoveryTimerRef = useRef<number | null>(null);
@@ -206,15 +213,28 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
     isStandalonePwa,
   });
   const selectedVideoUrl = sourceOverrideUrl || selectedPlaybackSource.url;
-  const shouldStartMuted =
-    audioPreferenceRef.current === 'muted' ||
-    (audioPreferenceRef.current !== 'unmuted' &&
-      (isMobile || effectiveVideoQuality === 'medium' || networkProfile.saveData || networkProfile.isSlowConnection));
-  const activeVideoPreload = isActive
-    ? effectiveVideoQuality === 'high' && !networkProfile.saveData && !isTouchPlaybackDevice
-      ? 'auto'
-      : 'metadata'
-    : 'none';
+  const shouldStartMuted = false;
+  const shouldWarmup = warmup && !networkProfile.saveData && !networkProfile.isSlowConnection;
+  const activeVideoPreload = isActive ? 'auto' : shouldWarmup ? 'metadata' : 'none';
+
+  // Refresh authoritative counts on reconnect and live database changes.
+  useEffect(() => {
+    if (!isActive || !currentUserId) return;
+    let disposed = false;
+    const refresh = async () => {
+      const { data } = await supabase.from('videos').select('likes_count').eq('id', video.id).maybeSingle();
+      if (disposed) return;
+      if (data) setLikesCount(data.likes_count);
+      await fetchCommentsCount();
+    };
+    const channel = supabase.channel(`reel-counts:${video.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos', filter: `id=eq.${video.id}` }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `video_id=eq.${video.id}` }, refresh)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, refresh)
+      .subscribe(status => { if (status === 'SUBSCRIBED') void refresh(); });
+    const interval = window.setInterval(refresh, 15000);
+    return () => { disposed = true; window.clearInterval(interval); void supabase.removeChannel(channel); };
+  }, [isActive, currentUserId, video.id]);
 
   // Initial data fetch - only fetch when active, batch all queries in parallel
   useEffect(() => {
@@ -272,6 +292,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
 
   // Fetch trending tags only once and cache them
   useEffect(() => {
+    if (!isActive || !isPlaying) return;
     // Use sessionStorage cache to avoid refetching on every video
     const cached = sessionStorage.getItem('toonreels_trending_tags');
     if (cached) {
@@ -288,7 +309,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
     }
     
     fetchTrendingTags();
-  }, []);
+  }, [isActive, isPlaying]);
 
   // Fetch trending tags to show fire emoji - moved outside of main useEffect
   const fetchTrendingTags = async () => {
@@ -394,6 +415,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
+    setAutoplayBlocked(false);
     videoEl.playbackRate = playbackSpeed;
     videoEl.loop = isLooping;
     videoEl.preload = activeVideoPreload;
@@ -411,9 +433,12 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       if (!analyticsTrackedRef.current && hasTrackedViewRef.current) {
         trackVideoAnalytics(false);
       }
+      hasTrackedViewRef.current = false;
 
-      if (isTouchPlaybackDevice) {
-        videoEl.removeAttribute('src');
+      // Keep the bounded neighbour's buffer when returning to a reel.
+      // Only warm the next reel after the active one has actually started.
+      if (shouldWarmup && videoEl.getAttribute('src') !== selectedVideoUrl) {
+        videoEl.src = selectedVideoUrl;
         videoEl.load();
       }
 
@@ -444,26 +469,6 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
           videoEl.load();
         }
         
-        if (videoEl.readyState < 2) {
-          await new Promise<void>((resolve) => {
-            const timeoutId = window.setTimeout(() => {
-              videoEl.removeEventListener('canplay', onReady);
-              videoEl.removeEventListener('loadeddata', onReady);
-              resolve();
-            }, effectiveVideoQuality === 'high' ? 900 : 1400);
-            
-            const onReady = () => {
-              window.clearTimeout(timeoutId);
-              videoEl.removeEventListener('canplay', onReady);
-              videoEl.removeEventListener('loadeddata', onReady);
-              resolve();
-            };
-            
-            videoEl.addEventListener('canplay', onReady);
-            videoEl.addEventListener('loadeddata', onReady);
-          });
-        }
-        
         if (isCancelled) return;
         
         if (videoEl.duration && videoEl.currentTime >= videoEl.duration - 0.5) {
@@ -482,14 +487,10 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
         setIsPlaying(true);
         setIsBuffering(false);
         
-        if (!hasTrackedViewRef.current) {
-          incrementViewCount();
-          hasTrackedViewRef.current = true;
-          watchStartTimeRef.current = Date.now();
-          analyticsTrackedRef.current = false;
-        }
       } catch (playError) {
-        console.log('Autoplay failed, waiting for user interaction', playError);
+        if (isCancelled) return;
+        setAutoplayBlocked((playError as { name?: string })?.name === 'NotAllowedError');
+        console.log('Playback could not start', playError);
         setIsPlaying(false);
         setIsBuffering(false);
       }
@@ -500,7 +501,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
     return () => {
       isCancelled = true;
     };
-  }, [isActive, selectedVideoUrl, autoplayEnabled, shouldStartMuted, effectiveVideoQuality, playbackSpeed, isLooping, activeVideoPreload, isTouchPlaybackDevice]);
+  }, [isActive, selectedVideoUrl, autoplayEnabled, shouldStartMuted, effectiveVideoQuality, playbackSpeed, isLooping, activeVideoPreload, isTouchPlaybackDevice, shouldWarmup]);
 
   // Handle video events for better mobile playback
   useEffect(() => {
@@ -514,6 +515,16 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       }
     };
     const handlePlaying = () => {
+      if (!isActive) { videoEl.pause(); return; }
+      setIsPlaying(true);
+      setAutoplayBlocked(false);
+      playbackStartedRef.current?.();
+      if (!hasTrackedViewRef.current && currentUserId) {
+        hasTrackedViewRef.current = true;
+        void incrementViewCount();
+        watchStartTimeRef.current = Date.now();
+        analyticsTrackedRef.current = false;
+      }
       if (isBufferingRef.current) {
         isBufferingRef.current = false;
         setIsBuffering(false);
@@ -526,66 +537,39 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
         setIsBuffering(false);
       }
     };
-    const reloadVideoFromCurrentPosition = () => {
-      const now = Date.now();
-      if (now - lastRecoveryAtRef.current < 2500) return;
-      lastRecoveryAtRef.current = now;
-
-      const resumeAt = Math.max(0, videoEl.currentTime || 0);
-      const restorePlayback = () => {
-        videoEl.removeEventListener('loadedmetadata', restorePlayback);
-        if (resumeAt > 0 && Number.isFinite(videoEl.duration)) {
-          videoEl.currentTime = Math.min(resumeAt, Math.max(0, videoEl.duration - 0.1));
-        }
-        videoEl.play().catch(() => {});
-      };
-
-      videoEl.addEventListener('loadedmetadata', restorePlayback, { once: true });
-      videoEl.load();
-    };
-    
     const handleStalled = () => {
       if (!isActive) return;
-      stallCountRef.current++;
-      
-      const count = stallCountRef.current;
-      const delay = Math.min(600 * count, 2200);
-      
-      if (stallRecoveryTimerRef.current) {
-        window.clearTimeout(stallRecoveryTimerRef.current);
-      }
-
+      // A slow download is not a decode failure. load()/seeking here discarded
+      // useful buffered data and restarted the very request we were waiting for.
+      if (stallRecoveryTimerRef.current) window.clearTimeout(stallRecoveryTimerRef.current);
       stallRecoveryTimerRef.current = window.setTimeout(() => {
-        if (!videoEl || !isActive) return;
-
-        if (count <= 2) {
-          if (videoEl.readyState >= 2) {
-            videoEl.play().catch(() => {});
-          }
-          return;
-        }
-
-        if (count <= 4 && Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
-          videoEl.currentTime = Math.min(videoEl.currentTime + 0.05, Math.max(videoEl.duration - 0.1, 0));
+        if (isActive && !videoEl.error && videoEl.paused && videoEl.readyState >= 2) {
           videoEl.play().catch(() => {});
-          return;
         }
-
-        reloadVideoFromCurrentPosition();
-      }, delay);
+      }, 8000);
     };
-    
+
     const handleError = () => {
       if (!isActive) return;
+      // currentSrc is absolute, while stored rendition URLs may be relative.
+      // Keep every failed source for this reel so fallback cannot cycle between them.
+      const sourceKey = (url: string) => new URL(url, document.baseURI).href;
+      const failedUrl = videoEl.currentSrc || videoEl.getAttribute('src');
+      if (failedUrl) failedSourceUrlsRef.current.add(sourceKey(failedUrl));
       const fallbackUrl = variantKeysWithFallback(video.video_variants, video.video_url)
-        .find((url) => url !== videoEl.currentSrc && url !== videoEl.getAttribute('src'));
+        .find((url) => !failedSourceUrlsRef.current.has(sourceKey(url)));
       if (fallbackUrl) {
         setSourceOverrideUrl(fallbackUrl);
         return;
       }
-      if (stallCountRef.current > 4) return;
-      stallCountRef.current++;
-      reloadVideoFromCurrentPosition();
+      // All sources failed. Stop rather than repeatedly reloading broken URLs.
+      if (stallRecoveryTimerRef.current) {
+        window.clearTimeout(stallRecoveryTimerRef.current);
+        stallRecoveryTimerRef.current = null;
+      }
+      isBufferingRef.current = false;
+      setIsBuffering(false);
+      setIsPlaying(false);
     };
 
     // Heavily throttled timeupdate - only setState when value visibly changes
@@ -661,10 +645,12 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
     hasTrackedViewRef.current = false;
     analyticsTrackedRef.current = false;
     playAttemptRef.current = 0;
+    failedSourceUrlsRef.current.clear();
     setSourceOverrideUrl(null);
   }, [video.id]);
 
   useEffect(() => {
+    failedSourceUrlsRef.current.clear();
     setSourceOverrideUrl(null);
   }, [videoQuality]);
 
@@ -719,7 +705,8 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
   const incrementViewCount = async () => {
     try {
       // Use atomic RPC function to prevent race conditions
-      await supabase.rpc('increment_video_views', { _video_id: video.id });
+      const { error } = await supabase.rpc('increment_video_views', { _video_id: video.id });
+      if (error) throw error;
     } catch (error) {
       console.error('Failed to increment view count:', error);
     }
@@ -737,7 +724,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       await supabase.from('video_analytics').insert({
         video_id: video.id,
         viewer_id: currentUserId || null,
-        watch_duration: watchDuration,
+        watch_duration: Math.min(120, Math.max(0, watchDuration)),
         completed: completed,
         device_type: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
       });
@@ -988,12 +975,17 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
   const togglePlayPause = () => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
-
-    if (isPlaying) {
+    setAutoplayBlocked(false);
+    if (!videoEl.paused) {
       videoEl.pause();
       setIsPlaying(false);
     } else {
-      videoEl.play().then(() => setIsPlaying(true)).catch(() => {});
+      videoEl.muted = false;
+      setIsMuted(false);
+      videoEl.play().then(() => setIsPlaying(true)).catch((error: { name?: string }) => {
+        setIsPlaying(false);
+        setAutoplayBlocked(error.name === 'NotAllowedError');
+      });
     }
   };
 
@@ -1334,7 +1326,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
             : ''
         }`}
         style={{ 
-          height: isFullscreen && !isMobile ? '100vh' : '100vh', 
+          height: isFullscreen && !isMobile ? '100dvh' : '100%',
           scrollSnapAlign: 'start',
           width: isFullscreen && !isMobile ? '100vw' : '100%',
         }}
@@ -1358,7 +1350,9 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       >
           <video
             ref={videoRef}
-            src={isTouchPlaybackDevice ? undefined : selectedVideoUrl}
+            controls={false}
+            poster="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+            src={undefined}
             className="w-full h-full object-contain"
             loop={isLooping}
             muted={isMuted}
@@ -1384,7 +1378,12 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
           </div>
         )}
         
-        {/* Play/Pause indicator - only show when user manually paused via tap */}
+        {isActive && !isPlaying && !isBuffering && (
+          <button type="button" aria-label={autoplayBlocked ? 'Play reel with sound' : 'Play reel'} className="absolute rounded-full bg-black/60 text-white p-3"
+            onClick={event => { event.stopPropagation(); togglePlayPause(); }}>
+            {autoplayBlocked ? <span>Play with sound</span> : <Play className="h-8 w-8 fill-white" aria-hidden="true" />}
+          </button>
+        )}
       </div>
       
       {/* Subtitle Display - Draggable */}
@@ -1417,98 +1416,14 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
       
       {/* ToonlyReels Branding - Top Left */}
-      <div className="absolute top-12 left-3 z-20">
-        <span className="text-white/40 text-xl font-bold tracking-wide">ToonlyReels</span>
-      </div>
-      
-      {/* Top Controls - aligned with ToonlyReels branding */}
-      <div className="absolute top-12 right-3 z-20 flex items-center gap-2">
-        {/* Settings (Quality & Speed) */}
-        <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full h-8 w-8 bg-black/40 text-white hover:bg-black/60"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[140px] bg-background z-50" onClick={(e) => e.stopPropagation()}>
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Quality</div>
-            <DropdownMenuItem 
-              onClick={() => handleQualityChange('auto')}
-              className={videoQuality === 'auto' ? 'bg-primary/10 text-primary' : ''}
-            >
-              Auto (Recommended)
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleQualityChange('high')}
-              className={videoQuality === 'high' ? 'bg-primary/10 text-primary' : ''}
-            >
-              HD (720p+)
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleQualityChange('medium')}
-              className={videoQuality === 'medium' ? 'bg-primary/10 text-primary' : ''}
-            >
-              SD (480p)
-            </DropdownMenuItem>
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Speed</div>
-            {[0.5, 1, 1.5, 2].map((speed) => (
-              <DropdownMenuItem 
-                key={speed}
-                onClick={() => handleSpeedChange(speed)}
-                className={playbackSpeed === speed ? 'bg-primary/10 text-primary' : ''}
-              >
-                {speed}x {speed === 1 && '(Normal)'}
-              </DropdownMenuItem>
-            ))}
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Loop</div>
-            <DropdownMenuItem 
-              onClick={() => {
-                setIsLooping(!isLooping);
-                toast.success(isLooping ? 'Loop disabled' : 'Loop enabled');
-              }}
-              className="flex items-center gap-2"
-            >
-              <Repeat className={`h-4 w-4 ${isLooping ? 'text-primary' : ''}`} />
-              {isLooping ? 'Disable Loop' : 'Enable Loop'}
-            </DropdownMenuItem>
-            {video.subtitles && video.subtitles.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Subtitles</div>
-                <DropdownMenuItem 
-                  onClick={() => {
-                    setSubtitlesEnabled(!subtitlesEnabled);
-                    toast.success(subtitlesEnabled ? 'Subtitles disabled' : 'Subtitles enabled');
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Subtitles className={`h-4 w-4 ${subtitlesEnabled ? 'text-primary' : ''}`} />
-                  {subtitlesEnabled ? 'Hide Subtitles' : 'Show Subtitles'}
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Volume Control */}
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={toggleMute}
-          className="rounded-full h-8 w-8 bg-black/40 text-white hover:bg-black/60"
-        >
-          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </Button>
+      <div data-testid="reel-brand" className="absolute top-3 left-3 z-20 rounded-full border border-white/20 bg-black/55 px-3 py-1.5 shadow-md backdrop-blur-md pointer-events-none">
+        <span className="text-white text-xs font-semibold tracking-wide">ToonlyReels</span>
       </div>
       
       {/* Progress Bar */}
       <div 
         className="absolute left-0 right-0 z-20 px-3"
-        style={{ bottom: isMobile ? '100px' : '86px' }}
+        style={{ bottom: aboveBottomNav ? '12px' : isMobile ? '100px' : '86px' }}
       >
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-white/80 font-medium min-w-[32px]">
@@ -1540,7 +1455,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       </div>
       
       {/* Video Info */}
-      <div className="absolute left-2 right-14 text-white z-10" style={{ bottom: isMobile ? '120px' : '120px' }}>
+      <div className="absolute left-2 right-14 text-white z-10" style={{ bottom: aboveBottomNav ? '36px' : '120px' }}>
         <div className="flex items-center gap-1.5 mb-0.5">
           <div 
             className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
@@ -1639,7 +1554,7 @@ const VideoPlayer = ({ video, currentUserId, isPremium, isActive, onCommentsClic
       </div>
 
       {/* Action Buttons */}
-      <div className="absolute right-1 flex flex-col gap-2 z-10" style={{ bottom: isMobile ? '120px' : '120px' }}>
+      <div className="absolute right-1 flex flex-col gap-2 z-10" style={{ bottom: aboveBottomNav ? '36px' : '120px' }}>
         {/* Like */}
         <button
           onClick={(e) => handleActionClick(e, handleLike)}

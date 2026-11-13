@@ -1,3 +1,5 @@
+import NotificationPermissionPrompt from './components/NotificationPermissionPrompt';
+import AccountDeletion from './pages/AccountDeletion';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -47,7 +49,7 @@ const AppContent = () => {
   const location = useLocation();
 
   // Allow access to legal pages without verification
-  const legalPages = ["/privacy-policy", "/terms-of-service", "/install"];
+  const legalPages = ["/privacy-policy", "/terms-of-service", "/install", "/delete-account"];
   const isLegalPage = legalPages.includes(location.pathname);
 
   // Show app logo while checking verification status
@@ -57,7 +59,7 @@ const AppContent = () => {
         <img 
           src="/toonlyreels-splash-logo.png" 
           alt="ToonlyReels" 
-          className="h-28 w-28 object-contain rounded-2xl"
+          className="h-32 w-32 object-contain rounded-2xl"
         />
       </div>
     );
@@ -84,6 +86,7 @@ const AppContent = () => {
         <Route path="/video-analytics/:videoId" element={<VideoAnalytics />} />
         <Route path="/creator-dashboard" element={<CreatorDashboard />} />
         <Route path="/milestones" element={<Milestones />} />
+        <Route path="/delete-account" element={<AccountDeletion />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/parent-dashboard" element={<ParentDashboard />} />
@@ -93,6 +96,7 @@ const AppContent = () => {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <NotificationPermissionPrompt />
       <ToonlyAI />
     </>
   );

@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ const ToonlyAI = () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
       },
       body: JSON.stringify({ messages: userMessages }),
     });

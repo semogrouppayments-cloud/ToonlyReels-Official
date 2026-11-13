@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { prepareUploadVideo } from '@/lib/uploadCompression';
+import UploadVideoPreview from '@/components/UploadVideoPreview';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -16,6 +19,10 @@ const Upload = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadPhase, setUploadPhase] = useState('Uploading...');
+  const compressionAbort = useRef<AbortController | null>(null);
+  const uploadInFlight = useRef(false);
+  useEffect(() => () => compressionAbort.current?.abort(), []);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -27,7 +34,7 @@ const Upload = () => {
   const [applyWatermark, setApplyWatermark] = useState(false);
 
   const uploadPlaybackVariants = async (userId: string, videoId: string, sourceFile: File, sourceFileName: string) => {
-    if (!canCreateToonPlaybackVariants()) return;
+    if (Capacitor.isNativePlatform() || !canCreateToonPlaybackVariants()) return;
 
     setUploadProgress(96);
     toast.info('Creating lighter mobile playback version...');
@@ -36,7 +43,7 @@ const Upload = () => {
     if (generatedVariants.length === 0) return;
 
     const variants: Record<string, { url: string; width: number; height: number; bitrate: number; mimeType: string }> = {};
-    const baseName = sourceFileName.replace(/\.[^.]+$/, '');
+    const baseName = sourceFileName.split('/').pop()!.replace(/\.[^.]+$/, '');
 
     for (const variant of generatedVariants) {
       const variantPath = `${userId}/variants/${baseName}_${variant.key}.webm`;
@@ -67,10 +74,11 @@ const Upload = () => {
     }
 
     if (Object.keys(variants).length > 0) {
-      await supabase.rpc('update_video_variants', {
+      const { error: variantsError } = await supabase.rpc('update_video_variants', {
         _video_id: videoId,
         _variants: variants,
       });
+      if (variantsError) throw variantsError;
     }
   };
 
@@ -212,6 +220,7 @@ const Upload = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadInFlight.current) return;
     if (!title.trim()) {
       toast.error('Please enter a title');
       return;
@@ -236,18 +245,21 @@ const Upload = () => {
       return;
     }
 
-    // Validate aspect ratio (9:16)
-    toast.info('Validating video...');
-    const isValidRatio = await validateVideoAspectRatio(videoFile);
-    if (!isValidRatio) {
-      toast.error('Video must be in 9:16 aspect ratio (vertical format)');
-      return;
-    }
-
-    // Validate duration (max 2 minutes)
-    const { valid: isValidDuration, duration } = await validateVideoDuration(videoFile);
-    if (!isValidDuration) {
-      toast.error(`Video is too long (${Math.floor(duration)}s). Maximum duration is 2 minutes (120s)`);
+    uploadInFlight.current = true;
+    const controller = new AbortController();
+    compressionAbort.current = controller;
+    setLoading(true);
+    setUploadPhase('Checking video...');
+    try {
+      if (!await validateVideoAspectRatio(videoFile)) throw new Error('Video must be in 9:16 aspect ratio (vertical format)');
+      const { valid, duration } = await validateVideoDuration(videoFile);
+      if (!valid) throw new Error(`Video is too long (${Math.floor(duration)}s). Maximum duration is 2 minutes (120s)`);
+      if (controller.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not check this video');
+      uploadInFlight.current = false;
+      compressionAbort.current = null;
+      setLoading(false);
       return;
     }
 
@@ -257,25 +269,37 @@ const Upload = () => {
     let progressInterval: ReturnType<typeof setInterval> | null = null;
 
     try {
-      // Simulate progress based on estimated upload time
-      const estimatedTimeMs = Math.min((videoFile.size / 1024 / 1024) * 1000, 60000); // ~1 second per MB, max 60s
-      progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) return prev; // Stop at 90% until actual upload completes
-          return prev + 5;
-        });
-      }, estimatedTimeMs / 18); // Reach 90% gradually
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      setUploadPhase('Preparing smaller video...');
+      setUploadProgress(0);
+      if (controller.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+      const prepared = await prepareUploadVideo(videoFile, setUploadProgress, controller.signal);
+      if (controller.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+      compressionAbort.current = null;
+      const uploadFile = prepared.file;
+      if (prepared.compressed) {
+        toast.success(`Prepared smaller video: ${(videoFile.size / 1048576).toFixed(1)} MB → ${(uploadFile.size / 1048576).toFixed(1)} MB`);
+      } else if (prepared.reason === 'failed') {
+        toast.info('This phone could not compress the video. Uploading the original.');
+      }
+      setUploadPhase('Uploading...');
+      setUploadProgress(0);
+      // Upload progress is an estimate; compression progress above comes from the encoder.
+      const estimatedTimeMs = Math.min((uploadFile.size / 1024 / 1024) * 1000, 60000);
+      progressInterval = setInterval(() => {
+        setUploadProgress(previous => previous >= 90 ? previous : previous + 5);
+      }, Math.max(250, estimatedTimeMs / 18));
 
       // Upload video to storage
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const uploadExtension = uploadFile.name.split('.').pop()?.toLowerCase() || fileExt;
+      const fileName = `${user.id}/${Date.now()}.${uploadExtension}`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
-        .upload(fileName, videoFile, {
-          cacheControl: '3600',
+        .upload(fileName, uploadFile, {
+          cacheControl: '86400',
+          contentType: uploadFile.type || 'video/mp4',
           upsert: false
         });
 
@@ -313,7 +337,7 @@ const Upload = () => {
       } else {
         // Auto-generate thumbnail from video
         try {
-          const thumbnailBlob = await generateThumbnail(videoFile);
+          const thumbnailBlob = await generateThumbnail(uploadFile);
           const thumbName = `${user.id}/thumb_${Date.now()}.jpg`;
           
           const { error: thumbError } = await supabase.storage
@@ -358,11 +382,11 @@ const Upload = () => {
       if (insertError) throw insertError;
 
       setUploadProgress(100);
-      toast.success('Video uploaded successfully!');
+      toast.success('Video uploaded and awaiting review.');
       
       // Trigger transcription in background (don't wait for it)
       if (insertedVideo?.id) {
-        uploadPlaybackVariants(user.id, insertedVideo.id, videoFile, fileName).catch((variantError) => {
+        uploadPlaybackVariants(user.id, insertedVideo.id, uploadFile, fileName).catch((variantError) => {
           console.warn('Mobile playback variant generation failed:', variantError);
         });
         triggerTranscription(insertedVideo.id, videoUrl);
@@ -385,6 +409,8 @@ const Upload = () => {
       
       toast.error(errorMessage);
     } finally {
+      uploadInFlight.current = false;
+      compressionAbort.current = null;
       setLoading(false);
       setUploadProgress(0);
     }
@@ -531,7 +557,7 @@ const Upload = () => {
                     className="cursor-pointer flex flex-col items-center gap-2"
                   >
                     {videoPreview ? (
-                      <video src={videoPreview} className="h-40 rounded-lg" controls />
+                      <UploadVideoPreview key={videoPreview} src={videoPreview} />
                     ) : (
                       <UploadIcon className="h-12 w-12 text-primary" />
                     )}
@@ -546,7 +572,7 @@ const Upload = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      MP4, MOV, or AVI (max 100MB)
+                      MP4, MOV, or WebM (max 250MB). Android tries to make larger videos smaller before uploading.
                     </p>
                   </label>
                 </div>
@@ -593,10 +619,10 @@ const Upload = () => {
                 </div>
               </div>
 
-              {loading && uploadProgress > 0 && (
+              {loading && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-foreground">Uploading...</span>
+                    <span className="text-foreground" role="status">{uploadPhase === "Uploading..." ? "Uploading... (estimated progress)" : uploadPhase}</span>
                     <span className="text-primary font-semibold">{uploadProgress}%</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -614,7 +640,7 @@ const Upload = () => {
                 disabled={loading}
                 size="lg"
               >
-                {loading ? 'Uploading...' : 'Upload Animation'}
+                {loading ? uploadPhase : 'Upload Animation'}
               </Button>
             </form>
           </CardContent>

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +21,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendKey) return new Response(JSON.stringify({ error: 'Email delivery is not configured' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const resend = new Resend(resendKey);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
@@ -59,60 +62,22 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Generate a new 4-digit PIN
-    const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const newPin = (1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 9000).toString();
     
     // Create admin client for updating PIN
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Hash and store the new PIN
-    if (pinType === "profile") {
-      // Update profile_secrets table with hashed PIN
-      const { error: updateError } = await adminClient.rpc("set_profile_pin_admin", {
-        _user_id: user.id,
-        _raw_pin: newPin,
-      });
-      
-      // If RPC doesn't exist, use direct update with pgcrypto
-      if (updateError) {
-        const { error } = await adminClient
-          .from("profile_secrets")
-          .upsert({
-            user_id: user.id,
-            profile_pin: newPin, // Will be hashed by trigger if exists
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "user_id" });
-        
-        if (error) {
-          console.error("Error updating profile PIN:", error);
-        }
-      }
-    } else {
-      // Update parental_controls table with hashed PIN
-      const { error: updateError } = await adminClient.rpc("set_parental_pin_admin", {
-        _user_id: user.id,
-        _raw_pin: newPin,
-      });
-      
-      if (updateError) {
-        const { error } = await adminClient
-          .from("parental_controls")
-          .upsert({
-            user_id: user.id,
-            parental_pin: newPin,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "user_id" });
-        
-        if (error) {
-          console.error("Error updating parental PIN:", error);
-        }
-      }
-    }
+    const { error: resetError } = await adminClient.rpc(
+      pinType === 'profile' ? 'set_profile_pin_admin' : 'set_parental_pin_admin',
+      { _user_id: user.id, _raw_pin: newPin },
+    );
+    if (resetError) throw resetError;
 
     // Send email with new PIN
     const pinTypeLabel = pinType === "profile" ? "Profile" : "Parental";
     
     const emailResponse = await resend.emails.send({
-      from: "ToonlyReels <onboarding@resend.dev>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "ToonlyReels <onboarding@resend.dev>",
       to: [user.email!],
       subject: `Your ToonlyReels ${pinTypeLabel} PIN Has Been Reset`,
       html: `
@@ -162,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("PIN reset email sent:", emailResponse);
+    if (emailResponse.error) throw new Error("PIN reset email could not be delivered");
 
     return new Response(
       JSON.stringify({ 

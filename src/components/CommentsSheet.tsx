@@ -53,6 +53,17 @@ const CommentsSheet = ({ videoId, isOpen, onClose, currentUserId }: CommentsShee
     }
   }, [isOpen, videoId]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const channel = supabase.channel(`comments:${videoId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `video_id=eq.${videoId}` }, () => { void fetchComments(); })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, () => { void fetchComments(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_likes' }, () => { void fetchComments(); })
+      .subscribe(status => { if (status === 'SUBSCRIBED') void fetchComments(); });
+    const timer = window.setInterval(fetchComments, 15000);
+    return () => { window.clearInterval(timer); void supabase.removeChannel(channel); };
+  }, [isOpen, videoId]);
+
   // Focus textarea when replying
   useEffect(() => {
     if (replyTo && textareaRef.current) {

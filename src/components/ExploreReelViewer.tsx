@@ -364,7 +364,7 @@ const ExploreReelViewer = ({ videos, startIndex, sectionTitle, onClose }: Explor
           return (
             <div
               key={video.id}
-              className="h-screen w-full snap-start snap-always"
+              className="h-full w-full snap-start snap-always"
               style={{ scrollSnapAlign: 'start' }}
             >
               {shouldRender ? (
